@@ -93,6 +93,7 @@ export class SkillDirector {
         this.explosion.trigger(IMPACT_POINT, s, p.particleCount);
         this.shockwave.trigger(IMPACT_POINT, s, p.particleCount);
         this.crater.trigger(IMPACT_POINT, s);
+        this.crater.setAutoGrow(true);
         this.lava.activate(IMPACT_POINT, this.crater.radius, s);
         this.postfx.triggerFlash(0.72 * s);
         this.shake.addImpulse(1.5 * s, 2.0);
@@ -113,7 +114,7 @@ export class SkillDirector {
         this.shake.setBase(0.02);
         this.env.setRedMix(0.12);
         this.lava.deactivate();
-        this.crater.fadeOut(0.6);
+        this.crater.setAutoGrow(false);
         this.heatTarget = 0.25;
         this._dissipateK = 1;
         break;
@@ -178,9 +179,13 @@ export class SkillDirector {
     this.lava.update(dt, time, p.lavaIntensity * (phase === 'DISSIPATE' ? this._dissipateK : 1));
 
     if (phase === 'DISSIPATE') {
-      this._dissipateK = Math.max(0, 1 - this.sm.timeInPhase / Math.max(0.001, 4.5));
+      const t = this.sm.timeInPhase;
+      this._dissipateK = Math.max(0, 1 - t / Math.max(0.001, 4.5));
       this.env.setRedMix(0.12 * this._dissipateK);
       this.heatTarget = 0.25 * this._dissipateK;
+      this.crater.fadeOut(0.6 * this._dissipateK);
+      // the terrain itself closes over so IDLE returns to an intact floor
+      if (t > 1.6) this.crater.setProgress(Math.max(0, 1 - (t - 1.6) / 2.6));
     }
 
     for (const key of PARTICLE_KEYS) {

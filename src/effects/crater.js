@@ -59,6 +59,7 @@ export class Crater {
     this.radius = 15;
     this.depth = 5.0;
     this.progress = 0;   // 0 = intact ground, 1 = fully formed crater
+    this.autoGrow = true;
     this.center = new THREE.Vector3(0, 0, 0);
     this.scorchFade = 0;
     this.fissurePulse = 0;
@@ -161,7 +162,7 @@ export class Crater {
 
   update(dt, time, lavaIntensity) {
     if (this.scorchFade <= 0) return;
-    if (this.progress < 1) this.setProgress(Math.min(1, this.progress + dt * 2.0));
+    if (this.autoGrow && this.progress < 1) this.setProgress(Math.min(1, this.progress + dt * 2.0));
     this.scorch.visible = true;
     this.scorch.material.opacity = Math.min(0.9, this.scorchFade) * 0.9;
     this.fissure.visible = true;
@@ -170,6 +171,10 @@ export class Crater {
     const k = Math.max(0, lavaIntensity) * pulse;
     this.fissure.material.opacity = Math.min(1, k);
     this.fissure.material.color.setRGB(Math.min(1.6, k * 1.6), k * 0.55, k * 0.16);
+  }
+
+  setAutoGrow(v) {
+    this.autoGrow = v;
   }
 
   fadeOut(k) {
@@ -182,6 +187,7 @@ export class Crater {
 
   reset() {
     this.progress = 0;
+    this.autoGrow = true;
     this.scorchFade = 0;
     this.setProgress(0);
     this.scorch.visible = false;

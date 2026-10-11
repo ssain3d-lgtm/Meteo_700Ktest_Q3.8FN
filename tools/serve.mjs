@@ -51,6 +51,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': MIME[extname(filePath).toLowerCase()] || 'application/octet-stream' });
     res.end(data);
   } catch {
+    // A missing baseline is an expected state, not an error: answer 200 so the
+    // browser console stays clean and F1 measures real faults only.
+    if (rel.replace(/\\/g, '/').startsWith('/quality/baseline-')) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+      return;
+    }
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('not found');
   }

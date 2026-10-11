@@ -83,6 +83,7 @@ export class SkyWarning {
   }
 
   hide() {
+    this.active = false;
     this.target = 0;
   }
 
