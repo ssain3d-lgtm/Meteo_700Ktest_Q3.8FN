@@ -2,3 +2,5 @@ node_modules/
 .qwen/
 *.tmp
 quality/report-*.json
+.playwright-mcp/
+shot-*.png
