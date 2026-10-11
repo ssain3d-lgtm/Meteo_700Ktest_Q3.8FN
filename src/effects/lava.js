@@ -82,9 +82,9 @@ export class Lava {
           crust = smoothstep(0.34, 0.66, crust);
           vec3 base = texture2D(uLava, vUv + vec2(uTime * 0.012, uTime * 0.008)).rgb;
           float vein = pow(1.0 - crust, 1.6);
-          vec3 hot = mix(vec3(1.0, 0.32, 0.06), vec3(1.0, 0.86, 0.45), vein);
-          vec3 col = mix(hot * 1.5, base * 0.35 + vec3(0.02, 0.005, 0.002), crust * 0.75);
-          float breathe = 0.82 + 0.18 * sin(uTime * 0.9 + crust * 5.0);
+          vec3 hot = mix(vec3(1.0, 0.34, 0.07), vec3(1.0, 0.88, 0.5), vein);
+          vec3 col = mix(hot * 2.1, base * 0.4 + vec3(0.03, 0.008, 0.003), crust * 0.6);
+          float breathe = 0.84 + 0.16 * sin(uTime * 0.9 + crust * 5.0);
           col *= uIntensity * breathe;
           float edge = smoothstep(1.0, 0.72, length(vUv - 0.5) * 2.0);
           float a = uFade * edge;
@@ -121,9 +121,15 @@ export class Lava {
     this.pool.scale.setScalar(this.poolRadius);
     this.strength = strength;
     this.target = 1;
+    this._lastCraterProgress = -1;
     this._conform();
+    this._placeRim();
+  }
+
+  _placeRim() {
+    const y = this.crater.heightAt(this.center.x, this.center.z) + LAVA_CLEARANCE + 0.05;
     this.rim.scale.set(this.poolRadius, 1, this.poolRadius);
-    this.rim.position.set(center.x, this.crater.heightAt(center.x, center.z) + LAVA_CLEARANCE + 0.05, center.z);
+    this.rim.position.set(this.center.x, y, this.center.z);
   }
 
   _conform() {
@@ -157,20 +163,27 @@ export class Lava {
       return;
     }
     this.pool.visible = true;
+    // The crater keeps excavating for ~0.5 s after impact, so the molten lake has to
+    // re-conform to the floor every time the terrain moves.
+    if (Math.abs(this.crater.progress - this._lastCraterProgress) > 0.001) {
+      this._lastCraterProgress = this.crater.progress;
+      this._conform();
+      this._placeRim();
+    }
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uIntensity.value = this.intensity;
     this.material.uniforms.uFade.value = Math.min(1, this.intensity * 1.4);
 
     const pulse = 0.8 + 0.2 * Math.sin(time * 1.1) + 0.1 * Math.sin(time * 2.7 + 0.6);
-    this.light.intensity = 95 * this.intensity * pulse;
+    this.light.intensity = 230 * this.intensity * pulse;
     this.light.position.set(this.center.x, this.crater.heightAt(this.center.x, this.center.z) + 2.2, this.center.z);
-    this.light.color.setRGB(1, 0.34 + 0.1 * pulse, 0.08);
+    this.light.color.setRGB(1, 0.36 + 0.1 * pulse, 0.09);
     this.rim.visible = this.intensity > 0.15;
-    this.rim.material.opacity = this.intensity * 0.5 * pulse;
+    this.rim.material.opacity = this.intensity * 0.7 * pulse;
 
     // ember loop rising off the molten floor
     const P = this.particles;
-    this._emberAcc += dt * 42 * this.intensity;
+    this._emberAcc += dt * 70 * this.intensity;
     while (this._emberAcc >= 1) {
       this._emberAcc -= 1;
       const a = Math.random() * Math.PI * 2;

@@ -24,13 +24,22 @@ export class MeteorAudio {
 
     this.master = this.ctx.createGain();
     this.master.gain.value = this.enabled ? this.masterVolume : 0;
+    // Sub-30 Hz content is inaudible on laptop/monitor speakers but was driving the
+    // bus into full-scale and making the limiter squash everything audible.
+    this.tilt = this.ctx.createBiquadFilter();
+    this.tilt.type = 'highpass';
+    this.tilt.frequency.value = 30;
+    this.tilt.Q.value = 0.7;
+    this.master.connect(this.tilt);
+    // Gentle glue only: a hard limiter (threshold -10, ratio 14) was squashing the
+    // impact transient flat, which is what made the hit feel weak.
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -10;
-    this.limiter.knee.value = 6;
-    this.limiter.ratio.value = 14;
-    this.limiter.attack.value = 0.003;
-    this.limiter.release.value = 0.22;
-    this.master.connect(this.limiter);
+    this.limiter.threshold.value = -3;
+    this.limiter.knee.value = 8;
+    this.limiter.ratio.value = 4;
+    this.limiter.attack.value = 0.006;
+    this.limiter.release.value = 0.25;
+    this.tilt.connect(this.limiter);
     this.limiter.connect(this.ctx.destination);
 
     this.noiseBuf = this._makeNoiseBuffer(4, 'brown');
@@ -119,9 +128,26 @@ export class MeteorAudio {
     sub.type = 'sine';
     sub.frequency.value = 31;
     const subG = this.ctx.createGain();
-    subG.gain.value = 0.22;
+    subG.gain.value = 0.1;
     sub.connect(subG); subG.connect(out);
     sub.start();
+
+    // Audible band: laptop/monitor speakers roll off below ~80 Hz, so a rumble made
+    // only of 31 Hz content is effectively silent. This mid band carries the tension.
+    const midSrc = this._noiseSource(this.noiseBuf);
+    const midBp = this.ctx.createBiquadFilter();
+    midBp.type = 'bandpass';
+    midBp.frequency.value = 105;
+    midBp.Q.value = 1.1;
+    const midG = this.ctx.createGain();
+    midG.gain.value = 0.8;
+    midSrc.connect(midBp); midBp.connect(midG); midG.connect(out);
+    const midLfo = this.ctx.createOscillator();
+    midLfo.frequency.value = 0.13;
+    const midLfoG = this.ctx.createGain();
+    midLfoG.gain.value = 22;
+    midLfo.connect(midLfoG); midLfoG.connect(midBp.frequency);
+    midLfo.start();
     this.bedNodes = { out };
   }
 
@@ -192,11 +218,11 @@ export class MeteorAudio {
     sub.type = 'sine';
     sub.frequency.value = 27;
     const subG = ctx.createGain();
-    subG.gain.value = 0.5;
+    subG.gain.value = 0.22;
     const trem = ctx.createOscillator();
     trem.frequency.value = 0.62;
     const tremG = ctx.createGain();
-    tremG.gain.value = 0.22;
+    tremG.gain.value = 0.1;
     trem.connect(tremG); tremG.connect(subG.gain);
     sub.connect(subG); subG.connect(out);
     sub.start(); trem.start();
@@ -204,9 +230,9 @@ export class MeteorAudio {
     const src = this._noiseSource(this.noiseBuf);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 140;
+    lp.frequency.value = 190;
     const swell = ctx.createGain();
-    swell.gain.value = 0.5;
+    swell.gain.value = 0.62;
     src.connect(lp); lp.connect(swell); swell.connect(out);
 
     // distant crackling heat
@@ -231,7 +257,7 @@ export class MeteorAudio {
     bp.frequency.value = 900;
     bp.Q.value = 0.8;
     const whooshG = ctx.createGain();
-    whooshG.gain.value = 0.85;
+    whooshG.gain.value = 1.0;
     src.connect(bp); bp.connect(whooshG); whooshG.connect(out);
     this.descentBP = bp;
 
@@ -243,10 +269,10 @@ export class MeteorAudio {
     roar2.frequency.value = 51.5;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 260;
+    lp.frequency.value = 340;
     lp.Q.value = 2.5;
     const rg = ctx.createGain();
-    rg.gain.value = 0.34;
+    rg.gain.value = 0.22;
     roar.connect(lp); roar2.connect(lp); lp.connect(rg); rg.connect(out);
     roar.start(); roar2.start();
     this.descentOut = out;
@@ -274,7 +300,7 @@ export class MeteorAudio {
     sub.type = 'sine';
     sub.frequency.value = 38;
     const subG = ctx.createGain();
-    subG.gain.value = 0.3;
+    subG.gain.value = 0.14;
     const subLfo = ctx.createOscillator();
     subLfo.frequency.value = 0.17;
     const subLfoG = ctx.createGain();
@@ -290,15 +316,52 @@ export class MeteorAudio {
     bp.frequency.value = 420;
     bp.Q.value = 2.2;
     const bg = ctx.createGain();
-    bg.gain.value = 0.10;
+    bg.gain.value = 0.26;
     const bam = ctx.createOscillator();
     bam.type = 'triangle';
     bam.frequency.value = 2.3;
     const bamG = ctx.createGain();
-    bamG.gain.value = 0.06;
+    bamG.gain.value = 0.16;
     bam.connect(bamG); bamG.connect(bg.gain);
     bs.connect(bp); bp.connect(bg); bg.connect(out);
     bam.start();
+
+    // Molten gurgle in the AUDIBLE band: a small boiling magma pot is mostly
+    // 100-400 Hz content, not sub-bass. Frequency wanders so it never sounds looped.
+    const gs = this._noiseSource(this.noiseBuf);
+    const gp1 = ctx.createBiquadFilter();
+    gp1.type = 'lowpass';
+    gp1.frequency.value = 320;
+    const gp2 = ctx.createBiquadFilter();
+    gp2.type = 'highpass';
+    gp2.frequency.value = 110;
+    const gg = ctx.createGain();
+    gg.gain.value = 0.9;
+    const surge = ctx.createOscillator();
+    surge.type = 'sine';
+    surge.frequency.value = 0.21;
+    const surgeG = ctx.createGain();
+    surgeG.gain.value = 0.35;
+    surge.connect(surgeG); surgeG.connect(gg.gain);
+    surge.start();
+    const wander = ctx.createOscillator();
+    wander.type = 'triangle';
+    wander.frequency.value = 0.07;
+    const wanderG = ctx.createGain();
+    wanderG.gain.value = 90;
+    wander.connect(wanderG); wanderG.connect(gp1.frequency);
+    wander.start();
+    gs.connect(gp1); gp1.connect(gp2); gp2.connect(gg); gg.connect(out);
+
+    // Fumarole hiss: escaping gas, keeps the field alive between crackles
+    const hs = this._noiseSource(this.whiteBuf);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2600;
+    const hg = ctx.createGain();
+    hg.gain.value = 0.07;
+    hs.connect(hp); hp.connect(hg); hg.connect(out);
+
     this.lavaOut = out;
   }
 
@@ -308,40 +371,59 @@ export class MeteorAudio {
     if (lvl > 0.05 && this.enabled) {
       const ctx = this.ctx;
       const t = ctx.currentTime;
-      // short noise transient: rock settling / flame lick
-      const src = ctx.createBufferSource();
-      src.buffer = this.whiteBuf;
-      src.playbackRate.value = 0.6 + Math.random() * 1.4;
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 700 + Math.random() * 2600;
-      bp.Q.value = 1.2 + Math.random() * 3;
-      const g = ctx.createGain();
-      const peak = 0.10 * lvl * (0.3 + Math.random() * 0.7);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(peak, t + 0.006);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09 + Math.random() * 0.22);
-      src.connect(bp); bp.connect(g); g.connect(this.lavaOut);
-      src.start(t);
-      src.stop(t + 0.5);
-      if (Math.random() > 0.72) this._lavaBlip(t, lvl);
+      const kind = Math.random();
+      if (kind < 0.55) {
+        // sharp crackle: flame licking rock
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteBuf;
+        src.playbackRate.value = 0.6 + Math.random() * 1.4;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 900 + Math.random() * 2800;
+        bp.Q.value = 1.2 + Math.random() * 3;
+        const g = ctx.createGain();
+        const peak = 0.26 * lvl * (0.35 + Math.random() * 0.65);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(peak, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08 + Math.random() * 0.22);
+        src.connect(bp); bp.connect(g); g.connect(this.lavaOut);
+        src.start(t);
+        src.stop(t + 0.5);
+      } else if (kind < 0.85) {
+        // rock tumble / gravel skitter settling into the pit
+        const src = ctx.createBufferSource();
+        src.buffer = this.noiseBuf;
+        src.playbackRate.value = 0.4 + Math.random() * 0.6;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(700 + Math.random() * 700, t);
+        bp.frequency.exponentialRampToValueAtTime(160 + Math.random() * 120, t + 0.5);
+        bp.Q.value = 1.6;
+        const g = ctx.createGain();
+        const peak = 0.22 * lvl * (0.4 + Math.random() * 0.6);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(peak, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45 + Math.random() * 0.5);
+        src.connect(bp); bp.connect(g); g.connect(this.lavaOut);
+        src.start(t);
+        src.stop(t + 1.1);
+      } else {
+        // lava blorp: molten bubble bursting
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        const f0 = 120 + Math.random() * 130;
+        o.frequency.setValueAtTime(f0, t);
+        o.frequency.exponentialRampToValueAtTime(f0 * 0.35, t + 0.3);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.2 * lvl, t + 0.025);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(g); g.connect(this.lavaOut);
+        o.start(t);
+        o.stop(t + 0.6);
+      }
     }
-    this._crackleTimer = setTimeout(() => this._crackleTick(), 220 + Math.random() * 1100);
-  }
-
-  _lavaBlip(t, lvl) {
-    const ctx = this.ctx;
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(90 + Math.random() * 60, t);
-    o.frequency.exponentialRampToValueAtTime(38, t + 0.25);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.12 * lvl, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-    o.connect(g); g.connect(this.lavaOut);
-    o.start(t);
-    o.stop(t + 0.5);
+    this._crackleTimer = setTimeout(() => this._crackleTick(), 130 + Math.random() * 700);
   }
 
   _startSchedulers() {
@@ -350,11 +432,27 @@ export class MeteorAudio {
   }
 
   // ---- E. impact one-shot ----
+  _distortionCurve(amount) {
+    const n = 1024;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = Math.tanh(amount * x);
+    }
+    return curve;
+  }
+
   impact(strength = 1) {
     if (!this.ctx || !this.enabled) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const s = Math.min(1.4, Math.max(0.4, strength));
+
+    // One shared bus so the whole hit sits at a predictable level instead of
+    // overloading the limiter (which is what flattened the previous version).
+    const bus = ctx.createGain();
+    bus.gain.value = 0.5;
+    bus.connect(this.master);
 
     // sharp crack transient
     {
@@ -362,15 +460,34 @@ export class MeteorAudio {
       src.buffer = this.whiteBuf;
       const hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
-      hp.frequency.value = 1800;
+      hp.frequency.value = 2400;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.85 * s, t);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
-      src.connect(hp); hp.connect(g); g.connect(this.master);
+      g.gain.setValueAtTime(0.5 * s, t);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.11);
+      src.connect(hp); hp.connect(g); g.connect(bus);
       src.start(t);
-      src.stop(t + 0.3);
+      src.stop(t + 0.35);
     }
-    // low-frequency thud
+    // audible mid punch: this is the part small speakers can actually reproduce
+    {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(300, t);
+      o.frequency.exponentialRampToValueAtTime(58, t + 0.55);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(1400, t);
+      lp.frequency.exponentialRampToValueAtTime(260, t + 0.6);
+      lp.Q.value = 3.2;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.72 * s, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.9);
+      o.connect(lp); lp.connect(g); g.connect(bus);
+      o.start(t);
+      o.stop(t + 1.1);
+    }
+    // low-frequency thud (headphones / good speakers)
     {
       const o = ctx.createOscillator();
       o.type = 'sine';
@@ -378,28 +495,31 @@ export class MeteorAudio {
       o.frequency.exponentialRampToValueAtTime(24, t + 0.9);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(1.05 * s, t + 0.012);
+      g.gain.linearRampToValueAtTime(0.34 * s, t + 0.012);
       g.gain.exponentialRampToValueAtTime(0.0005, t + 1.5);
-      o.connect(g); g.connect(this.master);
+      o.connect(g); g.connect(bus);
       o.start(t);
       o.stop(t + 1.7);
     }
-    // explosion crash body
+    // explosion crash body, softened by tanh so it gains harmonics instead of clipping
     {
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuf;
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.setValueAtTime(4200, t);
-      lp.frequency.exponentialRampToValueAtTime(160, t + 1.4);
+      lp.frequency.exponentialRampToValueAtTime(180, t + 1.6);
       lp.Q.value = 1.1;
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = this._distortionCurve(5);
+      shaper.oversample = '2x';
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.95 * s, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 2.2);
-      src.connect(lp); lp.connect(g); g.connect(this.master);
+      g.gain.linearRampToValueAtTime(0.5 * s, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 2.3);
+      src.connect(lp); lp.connect(shaper); shaper.connect(g); g.connect(bus);
       src.start(t);
-      src.stop(t + 2.4);
+      src.stop(t + 2.5);
     }
     // sub-bass shockwave
     {
@@ -409,30 +529,50 @@ export class MeteorAudio {
       o.frequency.exponentialRampToValueAtTime(18, t + 2.0);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.8 * s, t + 0.08);
+      g.gain.linearRampToValueAtTime(0.28 * s, t + 0.08);
       g.gain.exponentialRampToValueAtTime(0.0005, t + 2.6);
-      o.connect(g); g.connect(this.master);
+      o.connect(g); g.connect(bus);
       o.start(t);
       o.stop(t + 2.8);
     }
-    // debris rattles
-    for (let i = 0; i < 7; i++) {
-      const dt = t + 0.15 + Math.random() * 1.6;
+    // post-impact ground rumble tail that hands off to the lava ambience
+    {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 150;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t + 0.12);
+      g.gain.linearRampToValueAtTime(0.3 * s, t + 0.5);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 4.2);
+      src.connect(lp); lp.connect(g); g.connect(bus);
+      src.start(t);
+      src.stop(t + 4.4);
+    }
+    // debris + gravel: rocks raining down over the following seconds
+    for (let i = 0; i < 14; i++) {
+      const dt = t + 0.18 + Math.random() * 3.0;
       const src = ctx.createBufferSource();
       src.buffer = this.whiteBuf;
       const bp = ctx.createBiquadFilter();
       bp.type = 'bandpass';
-      bp.frequency.value = 500 + Math.random() * 1800;
+      bp.frequency.setValueAtTime(500 + Math.random() * 1900, dt);
+      bp.frequency.exponentialRampToValueAtTime(220 + Math.random() * 300, dt + 0.3);
       bp.Q.value = 2 + Math.random() * 4;
       const g = ctx.createGain();
-      const peak = 0.10 * s * (0.3 + Math.random() * 0.7);
+      const peak = 0.16 * s * (0.3 + Math.random() * 0.7);
       g.gain.setValueAtTime(0, dt);
       g.gain.linearRampToValueAtTime(peak, dt + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, dt + 0.12 + Math.random() * 0.2);
-      src.connect(bp); bp.connect(g); g.connect(this.master);
+      g.gain.exponentialRampToValueAtTime(0.0001, dt + 0.14 + Math.random() * 0.3);
+      src.connect(bp); bp.connect(g); g.connect(bus);
       src.start(dt);
-      src.stop(dt + 0.4);
+      src.stop(dt + 0.5);
     }
+    // settle bus so it does not linger at full level
+    bus.gain.setValueAtTime(0.5, t);
+    bus.gain.linearRampToValueAtTime(0.5, t + 1.2);
+    bus.gain.linearRampToValueAtTime(0.0, t + 4.6);
   }
 
   setLayer(name, value, ramp = 0.4) {
@@ -498,15 +638,15 @@ export class MeteorAudio {
         this.setLayer('lava', 0.55, 1.2);
         break;
       case 'AFTERMATH':
-        this.setLayer('bed', 0.16, 1.5);
+        this.setLayer('bed', 0.18, 1.5);
         this.setLayer('warning', 0.05, 1.5);
         this.setLayer('descent', 0, 1.2);
-        this.setLayer('lava', 0.85, 1.8);
+        this.setLayer('lava', 0.72, 1.8);
         break;
       case 'DISSIPATE':
-        this.setLayer('bed', 0.06, 2.5);
+        this.setLayer('bed', 0.08, 2.5);
         this.setLayer('warning', 0, 2.0);
-        this.setLayer('lava', 0.28, 3.0);
+        this.setLayer('lava', 0.3, 3.0);
         break;
     }
   }

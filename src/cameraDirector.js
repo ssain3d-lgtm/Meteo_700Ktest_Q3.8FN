@@ -9,9 +9,9 @@ const POSES = {
   CHARGE:      { pos: [9.6, 3.6, 12.8],  look: [0, 1.8, 0], fov: 55, time: 2.6 },
   SKY_WARNING: { pos: [10.8, 3.0, 14.6],  look: [4.0, 26.0, -34.0], fov: 60, time: 1.5 },
   DESCENT:     { pos: [13.5, 4.2, 16.5],  look: [2, 24.0, -34.0], fov: 58, time: 1.2 },
-  IMPACT:      { pos: [22.5, 8.5, 31.0], look: [0, 3.6, 0], fov: 62, time: 0.4 },
-  AFTERMATH:   { pos: [12.0, 4.4, 15.5],  look: [0, 0.4, 0], fov: 55, time: 2.2 },
-  DISSIPATE:   { pos: [14.5, 6.0, 19.0],  look: [0, 1.0, 0], fov: 53, time: 4.0 }
+  IMPACT:      { pos: [23.5, 11.0, 32.5], look: [0, 1.0, 0], fov: 60, time: 0.4 },
+  AFTERMATH:   { pos: [16.5, 12.0, 23.0], look: [0, -2.8, 0], fov: 55, time: 2.2 },
+  DISSIPATE:   { pos: [19.5, 13.5, 27.0], look: [0, -1.2, 0], fov: 54, time: 4.0 }
 };
 
 function smoothstep(t) {
@@ -87,7 +87,7 @@ export class CameraDirector {
       const radius = 15.5 + 6.5 * closeness;
       const heroX = Math.cos(sweep) * radius;
       const heroZ = Math.sin(sweep) * radius;
-      const heroY = 3.4 + 3.2 * (1 - closeness);
+      const heroY = 6.0 + 3.5 * (1 - closeness);
       posX = basePos.x + (heroX - basePos.x) * blend;
       posY = basePos.y + (heroY - basePos.y) * blend;
       posZ = basePos.z + (heroZ - basePos.z) * blend;

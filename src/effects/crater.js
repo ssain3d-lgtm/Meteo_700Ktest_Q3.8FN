@@ -7,24 +7,30 @@ import * as THREE from 'three';
 
 const GROUND_SIZE = 240;
 const GROUND_SEG = 180;
-export const DECAL_CLEARANCE = 0.3;
+export const DECAL_CLEARANCE = 0.42;
+const NOISE_CELL = 10;
 
-// Continuous, deterministic value noise (lattice cell = 8 world units).
+// Continuous, deterministic value noise (lattice cell = NOISE_CELL world units).
 function smoothNoise(x, z) {
-  const cx = Math.floor(x / 8), cz = Math.floor(z / 8);
+  const cx = Math.floor(x / NOISE_CELL), cz = Math.floor(z / NOISE_CELL);
   const h = (a, b) => {
     const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453123;
     return n - Math.floor(n);
   };
-  let fx = x / 8 - cx, fz = z / 8 - cz;
+  let fx = x / NOISE_CELL - cx, fz = z / NOISE_CELL - cz;
   fx = fx * fx * (3 - 2 * fx);
   fz = fz * fz * (3 - 2 * fz);
   const a = h(cx, cz), b = h(cx + 1, cz), c = h(cx, cz + 1), d = h(cx + 1, cz + 1);
   return (a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz) * 2 - 1;
 }
 
+function sstep(e0, e1, x) {
+  const t = Math.min(1, Math.max(0, (x - e0) / Math.max(1e-6, e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+
 // Unit disc with radial rings so it can follow terrain without cutting through it.
-function makeDiscGeometry(rings = 28, segments = 96) {
+function makeDiscGeometry(rings = 60, segments = 96) {
   const positions = [];
   const uvs = [];
   const indices = [];
@@ -96,38 +102,105 @@ export class Crater {
     scene.add(this.fissure);
 
     this._decalBase = Float32Array.from(discGeo.attributes.position.array);
+
+    // Ejected rubble that stays on the crater floor and rim: without it the pit reads
+    // as a clean geometric dimple instead of an explosion site.
+    this.rubbleCount = 130;
+    const rubbleGeo = new THREE.IcosahedronGeometry(1, 0);
+    const rubbleMat = new THREE.MeshStandardMaterial({
+      color: 0x2e241c, roughness: 0.96, metalness: 0.02,
+      emissive: 0x3a0a02, emissiveIntensity: 0.55
+    });
+    this.rubble = new THREE.InstancedMesh(rubbleGeo, rubbleMat, this.rubbleCount);
+    this.rubble.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.rubble.castShadow = false;
+    this.rubble.visible = false;
+    this.rubble.frustumCulled = false;
+    scene.add(this.rubble);
+    this.rubAngle = new Float32Array(this.rubbleCount);
+    this.rubRadius = new Float32Array(this.rubbleCount);
+    this.rubSize = new Float32Array(this.rubbleCount);
+    this.rubRot = new Float32Array(this.rubbleCount * 3);
+    this._rubMat4 = new THREE.Matrix4();
+    this._rubQuat = new THREE.Quaternion();
+    this._rubEuler = new THREE.Euler();
+    this._rubPos = new THREE.Vector3();
+    this._rubScale = new THREE.Vector3();
+    this.rubbleK = 0;
   }
 
-  // Analytic terrain height. Identical for ground and decals.
+  _scatterRubble(strength) {
+    for (let i = 0; i < this.rubbleCount; i++) {
+      this.rubAngle[i] = Math.random() * Math.PI * 2;
+      // densest on the rim and just outside it, some inside the bowl
+      const u = Math.random();
+      this.rubRadius[i] = u < 0.35 ? Math.random() * 0.75 : 0.9 + Math.random() * 0.85;
+      const s = (0.45 + Math.random() * Math.random() * 2.1) * (0.7 + strength * 0.5);
+      this.rubSize[i] = s;
+      const i3 = i * 3;
+      this.rubRot[i3] = Math.random() * 6.28;
+      this.rubRot[i3 + 1] = Math.random() * 6.28;
+      this.rubRot[i3 + 2] = Math.random() * 6.28;
+    }
+    this.rubbleK = 1;
+    this.rubble.visible = true;
+    this._conformRubble();
+  }
+
+  _conformRubble() {
+    if (!this.rubble.visible) return;
+    for (let i = 0; i < this.rubbleCount; i++) {
+      const i3 = i * 3;
+      const r = this.rubRadius[i] * this.radius;
+      const x = this.center.x + Math.cos(this.rubAngle[i]) * r;
+      const z = this.center.z + Math.sin(this.rubAngle[i]) * r;
+      const size = this.rubSize[i] * this.rubbleK;
+      this._rubPos.set(x, this.heightAt(x, z) + size * 0.32, z);
+      this._rubEuler.set(this.rubRot[i3], this.rubRot[i3 + 1], this.rubRot[i3 + 2]);
+      this._rubQuat.setFromEuler(this._rubEuler);
+      this._rubScale.set(size, size * 0.72, size * (0.8 + (i % 5) * 0.08));
+      this._rubMat4.compose(this._rubPos, this._rubQuat, this._rubScale);
+      this.rubble.setMatrixAt(i, this._rubMat4);
+    }
+    this.rubble.instanceMatrix.needsUpdate = true;
+    this.rubble.computeBoundingSphere();
+  }
+
+  // Analytic terrain height. Identical for ground, decals and rubble.
+  // Every term is blended with smoothstep so the profile is C1: a slope kink makes the
+  // coarser ground mesh and the finer decal mesh interpolate differently, and the decal
+  // dips into the terrain (gate D1 caught exactly that at the rim edge).
   heightAt(x, z) {
     if (this.progress <= 0) return 0;
     const dx = x - this.center.x, dz = z - this.center.z;
     const r = Math.sqrt(dx * dx + dz * dz);
     const R = this.radius;
     const p = this.progress;
-    let h = 0;
-    if (r < R) {
-      const t = r / R;
-      h = -this.depth * p * (1 - t * t);
-      h += smoothNoise(x, z) * 0.35 * p * (1 - t * 0.6);
-    } else if (r < R * 1.5) {
-      const t = (r - R) / (R * 0.5);
-      const bump = Math.sin(t * Math.PI);
-      h = this.depth * 0.3 * p * bump;
-      h += smoothNoise(x + 53.1, z - 27.7) * 0.22 * p * bump;
-    }
-    return h;
+    const t = r / R;
+
+    const bowlMask = 1 - sstep(0.8, 1.4, t);
+    const bowl = -this.depth * (1 - Math.pow(Math.min(t, 1), 3)) * bowlMask;
+
+    const rimMask = sstep(0.75, 1.05, t) * (1 - sstep(1.2, 1.65, t));
+    const rim = this.depth * 0.42 * rimMask;
+
+    const jag =
+      smoothNoise(x, z) * 0.7 * (1 - 0.5 * Math.min(t, 1)) * bowlMask +
+      smoothNoise(x + 53.1, z - 27.7) * 0.5 * rimMask;
+
+    return (bowl + rim + jag) * p;
   }
 
   trigger(center, strength) {
     this.center.copy(center);
-    this.radius = 13 * strength + 6;
-    this.depth = 4.2 * strength + 2.2;
+    this.radius = 14 * strength + 7;
+    this.depth = 5.2 * strength + 3.0;
     const worldRadius = this.radius * 2.4;
     this.scorch.scale.setScalar(worldRadius);
     this.fissure.scale.setScalar(worldRadius);
     this.scorchFade = 1;
     this.progress = 0;
+    this._scatterRubble(strength);
   }
 
   setProgress(p) {
@@ -143,6 +216,7 @@ export class Crater {
     this.ground.geometry.computeBoundingSphere();
     this._conformDecal(this.scorch);
     this._conformDecal(this.fissure);
+    this._conformRubble();
   }
 
   _conformDecal(mesh) {
@@ -183,12 +257,22 @@ export class Crater {
       this.scorch.visible = false;
       this.fissure.visible = false;
     }
+    if (this.rubble.visible && Math.abs(k - this.rubbleK) > 0.01) {
+      this.rubbleK = k;
+      if (k <= 0.02) {
+        this.rubble.visible = false;
+      } else {
+        this._conformRubble();
+      }
+    }
   }
 
   reset() {
     this.progress = 0;
     this.autoGrow = true;
     this.scorchFade = 0;
+    this.rubbleK = 0;
+    this.rubble.visible = false;
     this.setProgress(0);
     this.scorch.visible = false;
     this.fissure.visible = false;
@@ -201,6 +285,8 @@ export class Crater {
     this.scorch.material.dispose();
     this.fissure.geometry.dispose();
     this.fissure.material.dispose();
-    this.scene.remove(this.ground, this.scorch, this.fissure);
+    this.rubble.geometry.dispose();
+    this.rubble.material.dispose();
+    this.scene.remove(this.ground, this.scorch, this.fissure, this.rubble);
   }
 }
