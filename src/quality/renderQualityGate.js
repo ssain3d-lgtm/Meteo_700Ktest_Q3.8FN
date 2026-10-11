@@ -180,19 +180,33 @@ export function installGate(app) {
       const y01 = gPos[idx(ix, iz + 1) + 1], y11 = gPos[idx(ix + 1, iz + 1) + 1];
       return y00 + (y10 - y00) * tx + (y01 - y00) * tz + (y00 - y10 - y01 + y11) * tx * tz;
     };
-    let minClearance = Infinity, worstAt = null;
-    for (const mesh of [crater.scorch, crater.fissure]) {
+    let minClearance = Infinity, worstAt = null, worstSurface = null;
+    const targets = [
+      { mesh: crater.scorch, label: 'scorch' },
+      { mesh: crater.fissure, label: 'fissure' },
+      { mesh: app.lava.pool, label: 'lavaPool' }
+    ];
+    for (const { mesh, label } of targets) {
       const pos = mesh.geometry.attributes.position.array;
-      const s = mesh.scale.x;
+      const sx = mesh.scale.x;
+      const sy = mesh.scale.y;
       for (let i = 0; i < pos.length; i += 3) {
-        const wx = pos[i] * s + crater.center.x;
-        const wz = pos[i + 2] * s + crater.center.z;
-        const clearance = pos[i + 1] - groundY(wx, wz);
-        if (clearance < minClearance) { minClearance = clearance; worstAt = [+wx.toFixed(2), +wz.toFixed(2)]; }
+        const wx = pos[i] * sx + mesh.position.x;
+        const wz = pos[i + 2] * sx + mesh.position.z;
+        // WORLD y: the conforming code writes terrain heights into local Y, so the
+        // object's Y scale must be applied here too. Ignoring it let a decal that was
+        // hundreds of units underground report a healthy clearance.
+        const wy = pos[i + 1] * sy + mesh.position.y;
+        const clearance = wy - groundY(wx, wz);
+        if (clearance < minClearance) {
+          minClearance = clearance;
+          worstAt = [+wx.toFixed(2), +wz.toFixed(2)];
+          worstSurface = label;
+        }
       }
     }
     const status = minClearance < 0.15 ? 'FAIL' : (minClearance < 0.2 ? 'WARN' : 'PASS');
-    return [{ id: 'D1', minClearance: +minClearance.toFixed(4), configured: DECAL_CLEARANCE, worstAt, status }];
+    return [{ id: 'D1', minClearance: +minClearance.toFixed(4), configured: DECAL_CLEARANCE, worstAt, worstSurface, status }];
   }
 
   // ---- E1: fixed-camera regression + black square blobs ----

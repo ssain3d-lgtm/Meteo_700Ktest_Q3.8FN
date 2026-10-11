@@ -87,15 +87,16 @@ export class Crater {
 
     const discGeo = makeDiscGeometry();
     this.scorch = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({
-      map: textures.scorch, transparent: true, opacity: 0, depthWrite: false, color: 0x120c09
+      map: textures.scorch, transparent: true, opacity: 0, depthWrite: false,
+      color: 0x120c09, side: THREE.DoubleSide
     }));
-    this.scorch.renderOrder = 13;
+    this.scorch.renderOrder = 11;
     this.scorch.visible = false;
     scene.add(this.scorch);
 
     this.fissure = new THREE.Mesh(discGeo.clone(), new THREE.MeshBasicMaterial({
       map: textures.fissures, transparent: true, opacity: 0, depthWrite: false,
-      blending: THREE.AdditiveBlending, color: 0xffffff
+      blending: THREE.AdditiveBlending, color: 0xffffff, side: THREE.DoubleSide
     }));
     this.fissure.renderOrder = 14;
     this.fissure.visible = false;
@@ -196,8 +197,10 @@ export class Crater {
     this.radius = 14 * strength + 7;
     this.depth = 5.2 * strength + 3.0;
     const worldRadius = this.radius * 2.4;
-    this.scorch.scale.setScalar(worldRadius);
-    this.fissure.scale.setScalar(worldRadius);
+    // scale.y must stay 1: _conformDecal writes WORLD heights into local Y, so a
+    // uniform scale would multiply those heights and bury the decal underground.
+    this.scorch.scale.set(worldRadius, 1, worldRadius);
+    this.fissure.scale.set(worldRadius, 1, worldRadius);
     this.scorchFade = 1;
     this.progress = 0;
     this._scatterRubble(strength);

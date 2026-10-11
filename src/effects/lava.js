@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { GLSL_NOISE } from './glslCommon.js';
 
-const LAVA_CLEARANCE = 0.25;
+const LAVA_CLEARANCE = 0.5;
 
 function makeDiscGeometry(rings = 20, segments = 72) {
   const positions = [];
@@ -61,7 +61,7 @@ export class Lava {
         void main() {
           vUv = uv;
           vec3 p = position;
-          p.y += fbm2(vec2(p.x * 2.0 + uTime * 0.15, p.z * 2.0 - uTime * 0.1)) * 0.12;
+          p.y += fbm2(vec2(p.x * 2.0 + uTime * 0.15, p.z * 2.0 - uTime * 0.1)) * 0.06;
           vec4 world = modelMatrix * vec4(p, 1.0);
           vWorld = world.xyz;
           gl_Position = projectionMatrix * viewMatrix * world;
@@ -82,8 +82,8 @@ export class Lava {
           crust = smoothstep(0.34, 0.66, crust);
           vec3 base = texture2D(uLava, vUv + vec2(uTime * 0.012, uTime * 0.008)).rgb;
           float vein = pow(1.0 - crust, 1.6);
-          vec3 hot = mix(vec3(1.0, 0.34, 0.07), vec3(1.0, 0.88, 0.5), vein);
-          vec3 col = mix(hot * 2.1, base * 0.4 + vec3(0.03, 0.008, 0.003), crust * 0.6);
+          vec3 hot = mix(vec3(1.0, 0.34, 0.07), vec3(1.0, 0.86, 0.46), vein);
+          vec3 col = mix(hot * 1.35, base * 0.35 + vec3(0.03, 0.008, 0.003), crust * 0.68);
           float breathe = 0.84 + 0.16 * sin(uTime * 0.9 + crust * 5.0);
           col *= uIntensity * breathe;
           float edge = smoothstep(1.0, 0.72, length(vUv - 0.5) * 2.0);
@@ -93,7 +93,11 @@ export class Lava {
         }
       `,
       transparent: true,
-      depthWrite: true
+      depthWrite: true,
+      // DoubleSide on purpose: these discs are conformed to a concave bowl, so their
+      // winding flips along the steep walls. With FrontSide the whole molten lake was
+      // culled and the aftermath had no lava at all (measured: 0 px vs 24.6% of frame).
+      side: THREE.DoubleSide
     });
     this.pool = new THREE.Mesh(geo, this.material);
     this.pool.renderOrder = 12;
@@ -117,8 +121,12 @@ export class Lava {
   activate(center, radius, strength) {
     this.active = true;
     this.center = center.clone();
-    this.poolRadius = radius * 0.82;
-    this.pool.scale.setScalar(this.poolRadius);
+    // 0.68 keeps the molten lake on the near-flat floor. Out at 0.82 the disc reached
+    // the steep walls where the coarse ground mesh interpolates above the analytic
+    // height, and the pool poked through the terrain (gate D1: 0.127 clearance).
+    this.poolRadius = radius * 0.68;
+    // scale.y stays 1: _conform writes world terrain heights into local Y.
+    this.pool.scale.set(this.poolRadius, 1, this.poolRadius);
     this.strength = strength;
     this.target = 1;
     this._lastCraterProgress = -1;
@@ -172,7 +180,7 @@ export class Lava {
     }
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uIntensity.value = this.intensity;
-    this.material.uniforms.uFade.value = Math.min(1, this.intensity * 1.4);
+    this.material.uniforms.uFade.value = Math.min(0.9, this.intensity * 1.15);
 
     const pulse = 0.8 + 0.2 * Math.sin(time * 1.1) + 0.1 * Math.sin(time * 2.7 + 0.6);
     this.light.intensity = 230 * this.intensity * pulse;

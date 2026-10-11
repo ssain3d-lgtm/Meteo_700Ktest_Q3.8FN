@@ -292,15 +292,17 @@ export class Explosion {
       this.fireball.visible = false;
     }
 
-    const pilDur = 1.45;
+    const pilDur = 1.15;
     if (t < pilDur) {
       const p = t / pilDur;
-      const h = (11 + 15 * s) * Math.min(1, p * 2.8) * (1 - p * 0.2);
+      // squat billowing plume, not a tower: measured as a single column covering 68% of
+      // frame height it read as an orange line rather than fire.
+      const h = (7 + 9 * s) * Math.min(1, p * 3.2) * (1 - p * 0.15);
       this.pilMat.uniforms.uTime.value = time;
       this.pilMat.uniforms.uProgress.value = p;
       this.pilMat.uniforms.uHeight.value = h;
-      this.pilMat.uniforms.uRadius.value = (2.4 + 2.4 * s) * (1 - p * 0.2);
-      this.pilMat.uniforms.uFade.value = Math.pow(1 - p, 1.15);
+      this.pilMat.uniforms.uRadius.value = (4.0 + 4.0 * s) * (1 - p * 0.2);
+      this.pilMat.uniforms.uFade.value = Math.pow(1 - p, 1.05);
       this.pillar.position.copy(this.center).setY(0.3);
       this.pillar.visible = true;
     } else {
