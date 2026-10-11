@@ -1,0 +1,100 @@
+[      55ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[      63ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    1054ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    1054ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    1074ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    1074ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    1075ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    1152ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    1200ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-IDLE.json:0
+[    1396ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    1412ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    2325ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    2325ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    2345ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    2345ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    2346ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    2436ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    2470ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    2474ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-SUMMON.json:0
+[    2792ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    2803ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    3696ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    3696ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    3716ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    3716ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    3716ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    3801ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    3848ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    3849ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[    3857ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-CHARGE.json:0
+[    4163ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    4172ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    5077ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    5077ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    5096ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    5096ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    5097ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    5190ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    5243ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    5244ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[    5245ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[    5250ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-SKY_WARNING.json:0
+[    5536ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    5546ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    6483ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    6483ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    6500ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    6501ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    6501ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    6590ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    6631ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    6632ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[    6633ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[    6633ms] [LOG] [PHASE] DESCENT @ http://127.0.0.1:8792/src/main.js:85
+[    6642ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-DESCENT.json:0
+[    6952ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    6962ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    7835ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    7835ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    7857ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    7857ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    7857ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    7946ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    7988ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    7988ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[    7989ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[    7990ms] [LOG] [PHASE] DESCENT @ http://127.0.0.1:8792/src/main.js:85
+[    8006ms] [LOG] [PHASE] IMPACT @ http://127.0.0.1:8792/src/main.js:85
+[    8029ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-IMPACT.json:0
+[    8571ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[    8582ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[    9467ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[    9467ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[    9488ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[    9488ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[    9489ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[    9582ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[    9650ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[    9651ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[    9651ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[    9652ms] [LOG] [PHASE] DESCENT @ http://127.0.0.1:8792/src/main.js:85
+[    9667ms] [LOG] [PHASE] IMPACT @ http://127.0.0.1:8792/src/main.js:85
+[    9671ms] [LOG] [PHASE] AFTERMATH @ http://127.0.0.1:8792/src/main.js:85
+[    9745ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-AFTERMATH.json:0
+[   10213ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[   10223ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[   11096ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[   11096ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[   11117ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[   11117ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[   11118ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[   11204ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:145
+[   11258ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[   11259ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[   11260ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[   11261ms] [LOG] [PHASE] DESCENT @ http://127.0.0.1:8792/src/main.js:85
+[   11277ms] [LOG] [PHASE] IMPACT @ http://127.0.0.1:8792/src/main.js:85
+[   11280ms] [LOG] [PHASE] AFTERMATH @ http://127.0.0.1:8792/src/main.js:85
+[   11332ms] [LOG] [PHASE] DISSIPATE @ http://127.0.0.1:8792/src/main.js:85
+[   11357ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8792/quality/baseline-DISSIPATE.json:0

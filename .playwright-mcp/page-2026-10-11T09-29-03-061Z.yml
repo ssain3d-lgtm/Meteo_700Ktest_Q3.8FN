@@ -1,0 +1,51 @@
+- generic [active] [ref=f15e1]:
+  - generic [ref=f15e3]:
+    - heading "Meteor Strike" [level=1] [ref=f15e4]
+    - paragraph [ref=f15e5]: Ultimate Skill · Three.js VFX Demo
+    - generic [ref=f15e6]: IDLE
+    - generic [ref=f15e9]:
+      - button "Summon" [ref=f15e10] [cursor=pointer]
+      - button "Charge" [ref=f15e11] [cursor=pointer]
+      - button "Sky Warning" [ref=f15e12] [cursor=pointer]
+      - button "Cast Meteor" [ref=f15e13] [cursor=pointer]
+      - button "Full Demo" [ref=f15e14] [cursor=pointer]
+      - button "Reset" [ref=f15e15] [cursor=pointer]
+      - 'button "Sound: ON" [ref=f15e16] [cursor=pointer]'
+    - generic [ref=f15e17]:
+      - generic [ref=f15e18]:
+        - generic [ref=f15e19]: Glow
+        - slider "Glow 1.00" [ref=f15e20]: "1"
+        - emphasis [ref=f15e21]: "1.00"
+      - generic [ref=f15e22]:
+        - generic [ref=f15e23]: Particle Count
+        - slider "Particle Count 1.00" [ref=f15e24]: "1"
+        - emphasis [ref=f15e25]: "1.00"
+      - generic [ref=f15e26]:
+        - generic [ref=f15e27]: Meteor Size
+        - slider "Meteor Size 1.00" [ref=f15e28]: "1"
+        - emphasis [ref=f15e29]: "1.00"
+      - generic [ref=f15e30]:
+        - generic [ref=f15e31]: Descent Speed
+        - slider "Descent Speed 1.00" [ref=f15e32]: "1"
+        - emphasis [ref=f15e33]: "1.00"
+      - generic [ref=f15e34]:
+        - generic [ref=f15e35]: Impact Strength
+        - slider "Impact Strength 1.00" [ref=f15e36]: "1"
+        - emphasis [ref=f15e37]: "1.00"
+      - generic [ref=f15e38]:
+        - generic [ref=f15e39]: Lava Intensity
+        - slider "Lava Intensity 1.00" [ref=f15e40]: "1"
+        - emphasis [ref=f15e41]: "1.00"
+      - generic [ref=f15e42]:
+        - generic [ref=f15e43]: Heat Distortion
+        - slider "Heat Distortion 1.00" [ref=f15e44]: "1"
+        - emphasis [ref=f15e45]: "1.00"
+      - generic [ref=f15e46]:
+        - generic [ref=f15e47]: Shake Strength
+        - slider "Shake Strength 1.00" [ref=f15e48]: "1"
+        - emphasis [ref=f15e49]: "1.00"
+      - generic [ref=f15e50]:
+        - generic [ref=f15e51]: Master Volume
+        - slider "Master Volume 0.80" [ref=f15e52]: "0.8"
+        - emphasis [ref=f15e53]: "0.80"
+  - generic [ref=f15e54]: Click Full Demo for the complete sequence

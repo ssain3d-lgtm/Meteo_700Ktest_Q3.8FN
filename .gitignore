@@ -1,0 +1,4 @@
+node_modules/
+.qwen/
+*.tmp
+quality/report-*.json

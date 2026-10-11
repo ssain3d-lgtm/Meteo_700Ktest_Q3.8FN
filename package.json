@@ -1,0 +1,14 @@
+{
+  "name": "meteor-strike-ultimate",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Three.js cinematic ultimate-skill demo: METEOR STRIKE (magic circle -> meteor descent -> impact -> lava aftermath)",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "gate": "node tools/quality/gate.mjs",
+    "gate:static": "node tools/quality/gate.mjs --static-only"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  }
+}

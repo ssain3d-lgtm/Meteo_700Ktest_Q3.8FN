@@ -1,0 +1,16 @@
+[      67ms] [LOG] [BOOT] start @ http://127.0.0.1:8792/src/main.js:20
+[      76ms] [LOG] [BOOT] textures: start @ http://127.0.0.1:8792/src/main.js:33
+[     839ms] [LOG] [BOOT] textures: done @ http://127.0.0.1:8792/src/main.js:36
+[     839ms] [LOG] [BOOT] scene: start @ http://127.0.0.1:8792/src/main.js:38
+[     857ms] [LOG] [BOOT] scene: done @ http://127.0.0.1:8792/src/main.js:65
+[     857ms] [LOG] [BOOT] post: start @ http://127.0.0.1:8792/src/main.js:67
+[     858ms] [LOG] [BOOT] post: done @ http://127.0.0.1:8792/src/main.js:69
+[     925ms] [LOG] [BOOT] done @ http://127.0.0.1:8792/src/main.js:132
+[    7741ms] [LOG] [PHASE] SUMMON @ http://127.0.0.1:8792/src/main.js:85
+[   10335ms] [LOG] [PHASE] CHARGE @ http://127.0.0.1:8792/src/main.js:85
+[   13335ms] [LOG] [PHASE] SKY_WARNING @ http://127.0.0.1:8792/src/main.js:85
+[   15735ms] [LOG] [PHASE] DESCENT @ http://127.0.0.1:8792/src/main.js:85
+[   17978ms] [LOG] [PHASE] IMPACT @ http://127.0.0.1:8792/src/main.js:85
+[   19660ms] [LOG] [PHASE] AFTERMATH @ http://127.0.0.1:8792/src/main.js:85
+[   28664ms] [LOG] [PHASE] DISSIPATE @ http://127.0.0.1:8792/src/main.js:85
+[   33664ms] [LOG] [PHASE] IDLE @ http://127.0.0.1:8792/src/main.js:85
