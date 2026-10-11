@@ -13,6 +13,8 @@ export class MeteorAudio {
     this.levels = { bed: 0, hum: 0, shimmer: 0, warning: 0, descent: 0, lava: 0 };
     this._crackleTimer = null;
     this._shimmerTimer = null;
+    this._rainTimer = null;
+    this._rainBus = null;
   }
 
   init() {
@@ -442,137 +444,178 @@ export class MeteorAudio {
     return curve;
   }
 
+  // One rock landing on the ground. Noise-based, never an oscillator sweep: a swept
+  // sine is what made the previous impact read as a cartoon "튱".
+  _rockHit(at, level, big) {
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = big ? this.noiseBuf : this.whiteBuf;
+    src.playbackRate.value = 0.5 + Math.random() * 1.6;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    const f = big ? 120 + Math.random() * 220 : 300 + Math.random() * 2200;
+    bp.frequency.setValueAtTime(f * (big ? 1.8 : 1.4), at);
+    bp.frequency.exponentialRampToValueAtTime(f, at + 0.09);
+    bp.Q.value = big ? 0.9 : 1.5 + Math.random() * 4;
+    const g = ctx.createGain();
+    const peak = level * (big ? 0.46 : 0.22) * (0.45 + Math.random() * 0.55);
+    const dec = big ? 0.22 + Math.random() * 0.2 : 0.04 + Math.random() * 0.13;
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(peak, at + (big ? 0.006 : 0.002));
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dec);
+    src.connect(bp); bp.connect(g); g.connect(this._rainBus);
+    src.start(at);
+    src.stop(at + dec + 0.35);
+  }
+
+  // Sustained debris: rocks big and small raining onto the crater floor for seconds.
+  _startDebrisRain(strength, duration) {
+    clearTimeout(this._rainTimer);
+    const ctx = this.ctx;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(this.master);
+    this._rainBus = bus;
+    const start = ctx.currentTime;
+    const end = start + duration;
+    const step = () => {
+      if (!this.ctx || !this.enabled) { this._rainBus = null; return; }
+      const now = ctx.currentTime;
+      if (now >= end) {
+        const t2 = ctx.currentTime;
+        bus.gain.cancelScheduledValues(t2);
+        bus.gain.setValueAtTime(bus.gain.value, t2);
+        bus.gain.linearRampToValueAtTime(0, t2 + 0.4);
+        this._rainBus = null;
+        return;
+      }
+      const progress = (now - start) / duration;
+      const level = strength * (1 - progress * 0.7);
+      const hits = Math.max(1, Math.round(7 - progress * 5));
+      for (let i = 0; i < hits; i++) {
+        this._rockHit(now + Math.random() * 0.16, level, Math.random() > 0.78);
+      }
+      this._rainTimer = setTimeout(step, 110 + Math.random() * 190);
+    };
+    step();
+  }
+
   impact(strength = 1) {
     if (!this.ctx || !this.enabled) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const s = Math.min(1.4, Math.max(0.4, strength));
 
-    // One shared bus so the whole hit sits at a predictable level instead of
-    // overloading the limiter (which is what flattened the previous version).
     const bus = ctx.createGain();
-    bus.gain.value = 0.5;
+    bus.gain.value = 0.72;
     bus.connect(this.master);
 
-    // sharp crack transient
+    // 1) the slam: broadband noise, near-instant attack
     {
-      const src = ctx.createBufferSource();
-      src.buffer = this.whiteBuf;
-      const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 2400;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.5 * s, t);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.11);
-      src.connect(hp); hp.connect(g); g.connect(bus);
-      src.start(t);
-      src.stop(t + 0.35);
-    }
-    // audible mid punch: this is the part small speakers can actually reproduce
-    {
-      const o = ctx.createOscillator();
-      o.type = 'sawtooth';
-      o.frequency.setValueAtTime(300, t);
-      o.frequency.exponentialRampToValueAtTime(58, t + 0.55);
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(1400, t);
-      lp.frequency.exponentialRampToValueAtTime(260, t + 0.6);
-      lp.Q.value = 3.2;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.72 * s, t + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.9);
-      o.connect(lp); lp.connect(g); g.connect(bus);
-      o.start(t);
-      o.stop(t + 1.1);
-    }
-    // low-frequency thud (headphones / good speakers)
-    {
-      const o = ctx.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(110, t);
-      o.frequency.exponentialRampToValueAtTime(24, t + 0.9);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.34 * s, t + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 1.5);
-      o.connect(g); g.connect(bus);
-      o.start(t);
-      o.stop(t + 1.7);
-    }
-    // explosion crash body, softened by tanh so it gains harmonics instead of clipping
-    {
-      const src = ctx.createBufferSource();
-      src.buffer = this.noiseBuf;
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(4200, t);
-      lp.frequency.exponentialRampToValueAtTime(180, t + 1.6);
-      lp.Q.value = 1.1;
-      const shaper = ctx.createWaveShaper();
-      shaper.curve = this._distortionCurve(5);
-      shaper.oversample = '2x';
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5 * s, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 2.3);
-      src.connect(lp); lp.connect(shaper); shaper.connect(g); g.connect(bus);
-      src.start(t);
-      src.stop(t + 2.5);
-    }
-    // sub-bass shockwave
-    {
-      const o = ctx.createOscillator();
-      o.type = 'triangle';
-      o.frequency.setValueAtTime(60, t);
-      o.frequency.exponentialRampToValueAtTime(18, t + 2.0);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.28 * s, t + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 2.6);
-      o.connect(g); g.connect(bus);
-      o.start(t);
-      o.stop(t + 2.8);
-    }
-    // post-impact ground rumble tail that hands off to the lava ambience
-    {
-      const src = ctx.createBufferSource();
-      src.buffer = this.noiseBuf;
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 150;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t + 0.12);
-      g.gain.linearRampToValueAtTime(0.3 * s, t + 0.5);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 4.2);
-      src.connect(lp); lp.connect(g); g.connect(bus);
-      src.start(t);
-      src.stop(t + 4.4);
-    }
-    // debris + gravel: rocks raining down over the following seconds
-    for (let i = 0; i < 14; i++) {
-      const dt = t + 0.18 + Math.random() * 3.0;
       const src = ctx.createBufferSource();
       src.buffer = this.whiteBuf;
       const bp = ctx.createBiquadFilter();
       bp.type = 'bandpass';
-      bp.frequency.setValueAtTime(500 + Math.random() * 1900, dt);
-      bp.frequency.exponentialRampToValueAtTime(220 + Math.random() * 300, dt + 0.3);
-      bp.Q.value = 2 + Math.random() * 4;
+      bp.frequency.setValueAtTime(2600, t);
+      bp.frequency.exponentialRampToValueAtTime(700, t + 0.18);
+      bp.Q.value = 0.7;
       const g = ctx.createGain();
-      const peak = 0.16 * s * (0.3 + Math.random() * 0.7);
-      g.gain.setValueAtTime(0, dt);
-      g.gain.linearRampToValueAtTime(peak, dt + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, dt + 0.14 + Math.random() * 0.3);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.95 * s, t + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3);
       src.connect(bp); bp.connect(g); g.connect(bus);
-      src.start(dt);
-      src.stop(dt + 0.5);
+      src.start(t);
+      src.stop(t + 0.5);
     }
-    // settle bus so it does not linger at full level
-    bus.gain.setValueAtTime(0.5, t);
-    bus.gain.linearRampToValueAtTime(0.5, t + 1.2);
-    bus.gain.linearRampToValueAtTime(0.0, t + 4.6);
+    // 2) rock body: the "쿵" - low-mid noise, no pitch sweep
+    {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.playbackRate.value = 0.8;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(420, t);
+      lp.frequency.exponentialRampToValueAtTime(130, t + 0.5);
+      lp.Q.value = 1.4;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(1.0 * s, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.75);
+      src.connect(lp); lp.connect(g); g.connect(bus);
+      src.start(t);
+      src.stop(t + 1.0);
+    }
+    // 3) slab fracture snaps right behind the slam
+    for (let i = 0; i < 3; i++) {
+      const at = t + 0.02 + i * 0.045 + Math.random() * 0.03;
+      const src = ctx.createBufferSource();
+      src.buffer = this.whiteBuf;
+      src.playbackRate.value = 1.2 + Math.random();
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 2200 + Math.random() * 1500;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(0.3 * s, at + 0.001);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06 + Math.random() * 0.05);
+      src.connect(hp); hp.connect(g); g.connect(bus);
+      src.start(at);
+      src.stop(at + 0.25);
+    }
+    // 4) fireball roar: distorted noise swell behind the transient
+    {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(3000, t);
+      lp.frequency.exponentialRampToValueAtTime(220, t + 1.8);
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = this._distortionCurve(4);
+      shaper.oversample = '2x';
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.62 * s, t + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 2.4);
+      src.connect(lp); lp.connect(shaper); shaper.connect(g); g.connect(bus);
+      src.start(t);
+      src.stop(t + 2.6);
+    }
+    // 5) modest sub weight only - it must not eat the headroom like before
+    {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(70, t);
+      o.frequency.exponentialRampToValueAtTime(28, t + 1.1);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.24 * s, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 1.8);
+      o.connect(g); g.connect(bus);
+      o.start(t);
+      o.stop(t + 2.0);
+    }
+    // 6) ground roll: the earth still moving after the hit
+    {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 160;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t + 0.1);
+      g.gain.linearRampToValueAtTime(0.42 * s, t + 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 4.6);
+      src.connect(lp); lp.connect(g); g.connect(bus);
+      src.start(t);
+      src.stop(t + 4.8);
+    }
+    bus.gain.setValueAtTime(0.72, t);
+    bus.gain.linearRampToValueAtTime(0.72, t + 1.4);
+    bus.gain.linearRampToValueAtTime(0.0, t + 5.0);
+
+    // 7) the debris rain the single hit was missing entirely
+    this._startDebrisRain(s, 5.5);
   }
 
   setLayer(name, value, ramp = 0.4) {
@@ -630,12 +673,13 @@ export class MeteorAudio {
         this.setLayer('warning', 0.6, 0.8);
         break;
       case 'IMPACT':
-        this.setLayer('bed', 0.3, 0.5);
-        this.setLayer('hum', 0, 0.5);
-        this.setLayer('shimmer', 0, 0.4);
-        this.setLayer('warning', 0.25, 0.8);
-        this.setLayer('descent', 0.35, 0.5);
-        this.setLayer('lava', 0.55, 1.2);
+        // Duck everything else fast so the hit cuts through instead of adding to it.
+        this.setLayer('bed', 0.14, 0.15);
+        this.setLayer('hum', 0, 0.15);
+        this.setLayer('shimmer', 0, 0.15);
+        this.setLayer('warning', 0.08, 0.15);
+        this.setLayer('descent', 0.12, 0.15);
+        this.setLayer('lava', 0.45, 1.2);
         break;
       case 'AFTERMATH':
         this.setLayer('bed', 0.18, 1.5);
@@ -693,12 +737,15 @@ export class MeteorAudio {
 
   reset() {
     if (!this.started) return;
+    clearTimeout(this._rainTimer);
+    this._rainBus = null;
     this.setAll(0, 0.3);
   }
 
   dispose() {
     clearTimeout(this._crackleTimer);
     clearTimeout(this._shimmerTimer);
+    clearTimeout(this._rainTimer);
     if (this.ctx) this.ctx.close();
     this.ctx = null;
     this.started = false;

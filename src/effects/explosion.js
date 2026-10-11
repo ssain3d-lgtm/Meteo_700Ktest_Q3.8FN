@@ -69,7 +69,7 @@ export class Explosion {
     scene.add(this.fireball);
 
     // --- fire pillar ---
-    const pilGeo = new THREE.CylinderGeometry(1, 1, 1, 40, 24, true);
+    const pilGeo = new THREE.CylinderGeometry(1, 1, 1, 48, 32, true);
     pilGeo.translate(0, 0.5, 0);
     this.pilMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -84,20 +84,28 @@ export class Explosion {
         uniform float uTime;
         uniform float uHeight;
         uniform float uRadius;
-        varying vec3 vPos;
+        varying float vH;
+        varying float vAng;
         varying vec3 vNrm;
         varying vec3 vView;
         ${GLSL_NOISE}
         void main() {
-          vec3 p = position;
-          p.y *= uHeight;
           float h = clamp(position.y, 0.0, 1.0);
-          float taper = mix(1.0, 0.45, h);
-          p.x *= uRadius * taper;
-          p.z *= uRadius * taper;
-          float n = fbm3(vec3(p.x * 1.6, p.y * 1.1 - uTime * 2.2, p.z * 1.6));
-          p += normalize(vec3(p.x, 0.0, p.z) + vec3(1e-4, 0.0, 0.0)) * n * 0.5 * taper * uRadius;
-          vPos = position;
+          float ang = atan(position.z, position.x);
+          // plume profile: flared base, pinched neck, billowing head
+          float profile = mix(1.15, 0.62, smoothstep(0.0, 0.42, h))
+                        * mix(1.0, 1.55, smoothstep(0.5, 1.0, h));
+          float r = uRadius * profile;
+          // turbulence that GROWS with height so the column breaks into tongues
+          float n1 = fbm2(vec2(ang * 1.3, h * 2.4 - uTime * 1.7));
+          float n2 = fbm2(vec2(ang * 2.9 + 5.0, h * 4.5 - uTime * 2.6));
+          float sway = (n1 - 0.5) * 1.1 + (n2 - 0.5) * 0.6;
+          vec3 p = vec3(cos(ang) * r, h * uHeight, sin(ang) * r);
+          p.x += cos(ang) * sway * r * 1.1 * h;
+          p.z += sin(ang) * sway * r * 1.1 * h;
+          p.y += (n2 - 0.5) * uHeight * 0.10 * h;
+          vH = h;
+          vAng = ang;
           vNrm = normalize(normalMatrix * normal);
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           vView = -mv.xyz;
@@ -109,20 +117,28 @@ export class Explosion {
         uniform float uTime;
         uniform float uProgress;
         uniform float uFade;
-        varying vec3 vPos;
+        varying float vH;
+        varying float vAng;
         varying vec3 vNrm;
         varying vec3 vView;
+        ${GLSL_NOISE}
         void main() {
-          float h = clamp(vPos.y, 0.0, 1.0);
           vec3 nrm = normalize(vNrm);
           vec3 view = normalize(vView + vec3(0.0, 0.0, 1e-4));
           float fres = pow(1.0 - clamp(dot(nrm, view), 0.0, 1.0), 1.2);
-          vec2 uv = vec2(atan(vPos.z, vPos.x) * 0.15915494, h * 1.4 - uTime * 1.1);
-          vec3 fire = texture2D(uFire, uv).rgb;
           float core = pow(1.0 - fres, 2.0);
-          vec3 col = fire * (0.6 + core * 2.2);
-          col += vec3(1.0, 0.96, 0.88) * core * 1.5 * (1.0 - h);
-          float a = uFade * (1.0 - h) * (0.3 + 0.7 * core);
+          // two scrolling noise fields: big billow + fine tongues
+          float billow = fbm2(vec2(vAng * 1.4, vH * 2.2 - uTime * 1.5));
+          float tongues = fbm2(vec2(vAng * 3.6 + 11.0, vH * 6.0 - uTime * 3.1));
+          // narrow window -> distinct flame tongues with real gaps, not a faint veil
+          float shape = smoothstep(0.36, 0.60, billow * 0.6 + tongues * 0.55);
+          if (shape < 0.03) discard;
+          vec3 fire = texture2D(uFire, vec2(vAng * 0.15915494 + uTime * 0.04, vH * 1.6 - uTime * 1.3)).rgb;
+          vec3 col = fire * (0.9 + core * 2.6) * shape;
+          col += vec3(1.0, 0.94, 0.84) * core * 1.6 * (1.0 - smoothstep(0.0, 0.45, vH));
+          // top of the plume cools toward ash
+          col = mix(col, vec3(0.16, 0.10, 0.08), smoothstep(0.62, 1.0, vH) * 0.75);
+          float a = uFade * shape * (1.0 - smoothstep(0.45, 1.0, vH) * 0.8) * (0.45 + 0.55 * core);
           gl_FragColor = vec4(col, a);
         }
       `,
@@ -276,15 +292,15 @@ export class Explosion {
       this.fireball.visible = false;
     }
 
-    const pilDur = 1.7;
+    const pilDur = 1.45;
     if (t < pilDur) {
       const p = t / pilDur;
-      const h = (26 + 34 * s) * Math.min(1, p * 2.2) * (1 - p * 0.35);
+      const h = (11 + 15 * s) * Math.min(1, p * 2.8) * (1 - p * 0.2);
       this.pilMat.uniforms.uTime.value = time;
       this.pilMat.uniforms.uProgress.value = p;
       this.pilMat.uniforms.uHeight.value = h;
-      this.pilMat.uniforms.uRadius.value = (4.5 + 5 * s) * (1 - p * 0.4);
-      this.pilMat.uniforms.uFade.value = Math.pow(1 - p, 1.4);
+      this.pilMat.uniforms.uRadius.value = (2.4 + 2.4 * s) * (1 - p * 0.2);
+      this.pilMat.uniforms.uFade.value = Math.pow(1 - p, 1.15);
       this.pillar.position.copy(this.center).setY(0.3);
       this.pillar.visible = true;
     } else {
