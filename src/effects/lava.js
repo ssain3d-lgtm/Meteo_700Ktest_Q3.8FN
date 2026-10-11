@@ -86,7 +86,12 @@ export class Lava {
           vec3 col = mix(hot * 1.35, base * 0.35 + vec3(0.03, 0.008, 0.003), crust * 0.68);
           float breathe = 0.84 + 0.16 * sin(uTime * 0.9 + crust * 5.0);
           col *= uIntensity * breathe;
-          float edge = smoothstep(1.0, 0.72, length(vUv - 0.5) * 2.0);
+          float rr = length(vUv - 0.5) * 2.0;
+          // molten rim glow lives INSIDE the pool shader: a separate ring mesh reads as
+          // two hard arcs when viewed at a shallow angle (the reported "2 orange lines").
+          float rimBand = smoothstep(0.70, 0.90, rr) * (1.0 - smoothstep(0.90, 1.0, rr));
+          col += vec3(1.0, 0.42, 0.11) * rimBand * 0.55 * uIntensity;
+          float edge = smoothstep(1.0, 0.72, rr);
           float a = uFade * edge;
           if (a < 0.004) discard;
           gl_FragColor = vec4(col, a);
@@ -106,16 +111,6 @@ export class Lava {
 
     this.light = new THREE.PointLight(0xff5518, 0, 90, 1.5);
     scene.add(this.light);
-
-    // rim glow ring where lava meets rock
-    this.rim = new THREE.Mesh(
-      new THREE.TorusGeometry(1, 0.09, 8, 72),
-      new THREE.MeshBasicMaterial({ color: 0xff6a22, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
-    );
-    this.rim.rotation.x = -Math.PI / 2;
-    this.rim.renderOrder = 15;
-    this.rim.visible = false;
-    scene.add(this.rim);
   }
 
   activate(center, radius, strength) {
@@ -131,13 +126,6 @@ export class Lava {
     this.target = 1;
     this._lastCraterProgress = -1;
     this._conform();
-    this._placeRim();
-  }
-
-  _placeRim() {
-    const y = this.crater.heightAt(this.center.x, this.center.z) + LAVA_CLEARANCE + 0.05;
-    this.rim.scale.set(this.poolRadius, 1, this.poolRadius);
-    this.rim.position.set(this.center.x, y, this.center.z);
   }
 
   _conform() {
@@ -166,7 +154,6 @@ export class Lava {
     if (this.intensity < 0.01 && this.target < 0.5) {
       this.active = false;
       this.pool.visible = false;
-      this.rim.visible = false;
       this.light.intensity = 0;
       return;
     }
@@ -176,7 +163,6 @@ export class Lava {
     if (Math.abs(this.crater.progress - this._lastCraterProgress) > 0.001) {
       this._lastCraterProgress = this.crater.progress;
       this._conform();
-      this._placeRim();
     }
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uIntensity.value = this.intensity;
@@ -186,8 +172,6 @@ export class Lava {
     this.light.intensity = 230 * this.intensity * pulse;
     this.light.position.set(this.center.x, this.crater.heightAt(this.center.x, this.center.z) + 2.2, this.center.z);
     this.light.color.setRGB(1, 0.36 + 0.1 * pulse, 0.09);
-    this.rim.visible = this.intensity > 0.15;
-    this.rim.material.opacity = this.intensity * 0.7 * pulse;
 
     // ember loop rising off the molten floor
     const P = this.particles;
@@ -229,15 +213,12 @@ export class Lava {
     this.intensity = 0;
     this.target = 0;
     this.pool.visible = false;
-    this.rim.visible = false;
     this.light.intensity = 0;
   }
 
   dispose() {
     this.pool.geometry.dispose();
     this.material.dispose();
-    this.rim.geometry.dispose();
-    this.rim.material.dispose();
-    this.scene.remove(this.pool, this.rim, this.light);
+    this.scene.remove(this.pool, this.light);
   }
 }

@@ -509,28 +509,65 @@ export function createScorchLavaDecalTexture() {
   ctx.globalCompositeOperation = 'source-over';
   const scorch = registerTexture(toTex(c), { repeat: 'clamp', note: 'scorch decal' });
 
-  // lava fissures: radial crack polylines, white on black (used additively)
+  // lava fissures: a CONNECTED CRACK NETWORK, not spokes.
+  // The previous version drew 14 polylines radiating from the centre, which reads as
+  // octopus tentacles. Cooling basalt / dried mud cracks form a web between seeds.
   const { c: c2, ctx: ctx2 } = canvas2d(S);
   ctx2.lineCap = 'round';
-  const crack = (from, dir, len, width) => {
-    const pts = [from.slice()];
-    let a = dir;
-    const steps = 8 + Math.floor(rnd() * 6);
-    for (let i = 0; i < steps; i++) {
-      const last = pts[pts.length - 1];
-      a += (rnd() - 0.5) * 0.85;
-      pts.push([last[0] + Math.cos(a) * (len / steps), last[1] + Math.sin(a) * (len / steps)]);
+  ctx2.lineJoin = 'round';
+
+  const seeds = [];
+  for (let i = 0; i < 52; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = Math.pow(rnd(), 0.72) * H * 0.9; // denser toward the middle
+    seeds.push([H + Math.cos(a) * r, H + Math.sin(a) * r]);
+  }
+
+  const edges = new Set();
+  const maxSpan = H * 0.34;
+  for (let i = 0; i < seeds.length; i++) {
+    const near = seeds
+      .map((s, j) => [j, Math.hypot(s[0] - seeds[i][0], s[1] - seeds[i][1])])
+      .filter(([j, d]) => j !== i && d < maxSpan)
+      .sort((a, b) => a[1] - b[1]);
+    const k = 2 + Math.floor(rnd() * 2);
+    for (let n = 0; n < Math.min(k, near.length); n++) {
+      const j = near[n][0];
+      edges.add(i < j ? `${i}|${j}` : `${j}|${i}`);
     }
+  }
+
+  const jitteredPath = (p0, p1) => {
+    const dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const steps = 4 + Math.floor(rnd() * 4);
+    const amp = len * (0.06 + rnd() * 0.12);
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const off = (i === 0 || i === steps) ? 0 : (rnd() - 0.5) * 2 * amp;
+      pts.push([p0[0] + dx * t + nx * off, p0[1] + dy * t + ny * off]);
+    }
+    return pts;
+  };
+
+  for (const key of edges) {
+    const [i, j] = key.split('|').map(Number);
+    const pts = jitteredPath(seeds[i], seeds[j]);
     const bbox = polylineBBox(pts);
+    const midR = Math.hypot((bbox[0] + bbox[2]) / 2 - H, (bbox[1] + bbox[3]) / 2 - H) / H;
+    // wider and brighter near the crater, hairline toward the field edge
+    const width = (2.5 + rnd() * 5.5) * (1.25 - midR * 0.75);
+    if (width <= 0.4) continue;
     const draw = () => {
-      ctx2.strokeStyle = 'rgba(255,255,255,1)';
+      ctx2.strokeStyle = 'rgba(255,255,255,0.42)';
+      ctx2.lineWidth = width * 2.1;
+      drawPolyline(ctx2, pts);
+      ctx2.strokeStyle = 'rgba(255,255,255,0.95)';
       ctx2.lineWidth = width;
       drawPolyline(ctx2, pts);
-      ctx2.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx2.lineWidth = width * 2.4;
-      drawPolyline(ctx2, pts);
     };
-    // clamp-to-edge decal: cracks are masked to the disc, but keep them inside anyway
     if (spansEdge(bbox, S, S, 2)) {
       ctx2.save();
       ctx2.beginPath(); ctx2.arc(H, H, H * 0.985, 0, Math.PI * 2); ctx2.clip();
@@ -539,15 +576,8 @@ export function createScorchLavaDecalTexture() {
     } else {
       draw();
     }
-    if (rnd() > 0.4) {
-      const mid = pts[Math.floor(steps * 0.6)];
-      crack(mid, dir + (rnd() - 0.5) * 1.8, len * 0.5, width * 0.7);
-    }
-  };
-  for (let i = 0; i < 14; i++) {
-    const a = (i / 14) * Math.PI * 2 + rnd() * 0.3;
-    crack([H + Math.cos(a) * H * 0.16, H + Math.sin(a) * H * 0.16], a, H * (0.55 + rnd() * 0.4), 5 + rnd() * 6);
   }
+
   const grad2 = ctx2.createRadialGradient(H, H, 0, H, H, H);
   grad2.addColorStop(0, 'rgba(0,0,0,0)');
   grad2.addColorStop(0.72, 'rgba(0,0,0,0)');
@@ -556,7 +586,7 @@ export function createScorchLavaDecalTexture() {
   ctx2.fillStyle = grad2;
   ctx2.fillRect(0, 0, S, S);
   ctx2.globalCompositeOperation = 'source-over';
-  const fissures = registerTexture(toTex(c2), { repeat: 'clamp', note: 'lava fissure decal' });
+  const fissures = registerTexture(toTex(c2), { repeat: 'clamp', note: 'lava fissure crack network' });
   return { scorch, fissures };
 }
 
