@@ -4,7 +4,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 
 const root = resolve(process.cwd());
-const port = Number(process.env.PORT || 8792);
+const requestedPort = Number(process.env.PORT || 8792);
+const maxPortAttempts = Number(process.env.PORT_ATTEMPTS || 20);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -19,7 +20,7 @@ const MIME = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://127.0.0.1:${port}`);
+  const url = new URL(req.url, `http://127.0.0.1:${server.address()?.port ?? requestedPort}`);
 
   if (req.method === 'POST' && url.pathname === '/__quality-report') {
     let body = '';
@@ -63,6 +64,43 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, () => {
+// A busy port is the most common first-run failure for people cloning this repo,
+// so EADDRINUSE walks upward to the next free port instead of crashing. Any other
+// listen error (permissions, invalid port) is reported and exits non-zero.
+// Listeners are removed explicitly: server.listen(port, cb) leaves its 'listening'
+// handler attached after a failed attempt, which would resolve the retry with the
+// stale port number.
+function listen(startPort, attemptsLeft) {
+  return new Promise((resolvePort, rejectPort) => {
+    const cleanup = () => {
+      server.removeListener('error', onError);
+      server.removeListener('listening', onListening);
+    };
+    const onListening = () => {
+      cleanup();
+      resolvePort(server.address().port);
+    };
+    const onError = (err) => {
+      cleanup();
+      if (err.code === 'EADDRINUSE' && attemptsLeft > 1) {
+        console.log(`[SERVE] port ${startPort} is busy, trying ${startPort + 1} ...`);
+        listen(startPort + 1, attemptsLeft - 1).then(resolvePort, rejectPort);
+      } else if (err.code === 'EADDRINUSE') {
+        rejectPort(new Error(`no free port in ${startPort}..${startPort + attemptsLeft - 1}; set PORT to something else`));
+      } else {
+        rejectPort(err);
+      }
+    };
+    server.once('listening', onListening);
+    server.once('error', onError);
+    server.listen(startPort);
+  });
+}
+
+try {
+  const port = await listen(requestedPort, maxPortAttempts);
   console.log(`[SERVE] http://127.0.0.1:${port}/index.html`);
-});
+} catch (err) {
+  console.error(`[SERVE] failed to start: ${err.message}`);
+  process.exitCode = 1;
+}

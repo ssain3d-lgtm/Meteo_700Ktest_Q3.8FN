@@ -2,12 +2,29 @@
   "name": "meteor-strike-ultimate",
   "version": "1.0.0",
   "type": "module",
-  "description": "Three.js cinematic ultimate-skill demo: METEOR STRIKE (magic circle -> meteor descent -> impact -> lava aftermath)",
+  "description": "Three.js cinematic ultimate-skill demo: METEOR STRIKE (magic circle -> charge -> sky warning -> meteor descent -> impact -> crater/lava aftermath), all textures and audio generated procedurally",
+  "license": "MIT",
+  "private": false,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "serve": "node tools/serve.mjs",
     "gate": "node tools/quality/gate.mjs",
-    "gate:static": "node tools/quality/gate.mjs --static-only"
+    "gate:static": "node tools/quality/gate.mjs --static-only",
+    "gate:setup": "npm i -D playwright && npx playwright install chromium"
   },
+  "keywords": [
+    "three-js",
+    "webgl",
+    "vfx",
+    "shader",
+    "meteor",
+    "particle-system",
+    "game-development",
+    "postprocessing",
+    "bloom"
+  ],
   "dependencies": {
     "three": "0.186.1"
   }

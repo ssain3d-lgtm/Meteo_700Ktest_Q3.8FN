@@ -1,104 +1,142 @@
-# METEOR STRIKE — Three.js 궁극기 스킬 VFX 데모
+# METEOR STRIKE — Three.js Ultimate-Skill VFX Demo
 
-바닥 마법진 소환 → 충전 → 하늘 경고 → 메테오 낙하 → 충돌 → 크레이터/용암 잔류 필드 → 소멸까지
-8개 상태로 진행되는 시네마틱 궁극기 연출 데모. 모든 텍스처와 사운드는 절차적으로 생성된다
-(외부 에셋 없음).
+A cinematic ultimate-ability sequence driven by an 8-state machine: ground magic circle
+summon → charge → sky warning → meteor descent → impact → crater / lava aftermath field →
+dissipate. **Every texture and every sound is generated procedurally at runtime — there are
+no external asset files in this repo.**
 
-## 실행 방법
+![METEOR STRIKE — meteor descent frame captured from the demo](assets/preview.png)
+
+## Run it
 
 ```bash
 npm install
 npm run serve
-# 브라우저에서 http://127.0.0.1:8792/index.html
+# then open  http://127.0.0.1:8792/index.html  in your browser
 ```
 
-`Full Demo` 버튼을 누르면 전체 시퀀스가 자동 진행됩니다. 각 단계 버튼으로 개별 페이즈만
-볼 수도 있고, `Reset`으로 초기화합니다. 사운드는 첫 클릭(유저 제스처) 이후에 활성화됩니다.
+> **Do not double-click `index.html`.** Opening it as a `file://` path will show a blank page:
+> the demo uses an ES-module import map that resolves `three` from `node_modules`, and browsers
+> block that over `file://`. You must run it through the included server (`npm run serve`) or any
+> other static HTTP server.
 
-## 파일 구조
+Requirements:
+
+| | Minimum |
+|---|---|
+| Node.js | 18 or newer (declared in `package.json` → `engines`) |
+| Browser | Chrome / Edge 89+, Firefox 108+, or Safari 16.4+ (import-map support) |
+| GPU | WebGL2. Integrated laptop GPUs work; the render scale is adjustable via the sliders. |
+| Network | Only for the one-time `npm install` (fetches `three`). After that the demo runs offline. |
+
+Click **Full Demo** to play the whole sequence. The individual phase buttons
+(`Summon`, `Charge`, `Sky Warning`, `Cast Meteor`) jump to a single phase, and **Reset** returns to
+IDLE. Audio starts on your first click — browsers require a user gesture before sound can play,
+so the **Sound: ON/OFF** button is the master switch.
+
+If port 8792 is already taken, the server walks up to the next free port and prints the real URL:
+
+```
+[SERVE] port 8792 is busy, trying 8793 ...
+[SERVE] http://127.0.0.1:8793/index.html
+```
+
+Force a specific port with `PORT=9000 npm run serve` (Windows PowerShell:
+`$env:PORT=9000; npm run serve`).
+
+## File structure
 
 ```
 index.html
 package.json
 src/
-  main.js                  렌더러/씬/루프 조립, window.__meteorApp 노출
-  params.js                슬라이더로 제어하는 런타임 파라미터
-  stateMachine.js          IDLE..DISSIPATE 상태 머신
-  cameraDirector.js        페이즈별 카메라 포즈 + 낙하 추적 + shake 레이어
-  director.js              상태 머신과 모든 이펙트/오디오를 연결하는 안무
-  ui.js                    버튼/슬라이더/페이즈 표시
+  main.js                  renderer/scene/loop assembly, exposes window.__meteorApp
+  params.js                runtime parameters wired to the sliders
+  stateMachine.js          IDLE..DISSIPATE state machine
+  cameraDirector.js        per-phase camera poses + descent tracking + shake layer
+  director.js              choreography that wires the state machine to every effect/audio layer
+  ui.js                    buttons / sliders / phase readout
   audio/
-    meteorAudio.js         절차적 Web Audio 레이어 6종 + impact 일회성 이벤트
+    meteorAudio.js         6 procedural Web Audio layers + one-shot impact events
   effects/
-    glslCommon.js          공유 GLSL fbm/hash chunks
-    proceduralTextures.js  (src/assets) 절차적 캔버스 텍스처 + 심 방지
-    magicCircle.js         마법진 5레이어 + 코어 + 룬 아크
-    meteor.js              암석 크러스트 + 용암 균열 + 화염 오라 + 코어 + 방출
-    fireTrail.js           낙하 궤적 리본 + 모션 스트릭
-    explosion.js           화구, 화염 기둥, 접지 플래시, 3D 파편(instanced)
-    shockwave.js           3중 충격파 링 + 열파 스커트 + 먼지 시트
-    crater.js              지면 변형 크레이터 + 지형 추종 데칼(스코치/용암 균열)
-    lava.js                용암 웅덩이 + 가장자리 발광 + ember 루프 + 연기
-    particles.js           풀링된 GPU 파티클 시스템 5종
+    glslCommon.js          shared GLSL fbm/hash chunks
+    proceduralTextures.js  (src/assets) procedural canvas textures + seam avoidance
+    magicCircle.js         5 counter-rotating rings + core + rune arcs
+    meteor.js              rock crust + lava cracks + fire aura + core + breakup
+    fireTrail.js           descent ribbon trail + motion streak
+    explosion.js           fireball, flame plume, ground flash, 3D debris (instanced)
+    shockwave.js           3 shockwave rings + thermal skirt + dust sheet
+    crater.js              terrain-deformed crater + terrain-following decals (scorch / lava cracks)
+    lava.js                lava pool + rim glow + ember loop + smoke
+    particles.js           5 pooled GPU particle systems
     postfx.js              RenderPass → UnrealBloom → HeatDistortion → OutputPass
-    cameraShake.js         base + impulse 카메라 흔들림
-    skyWarning.js          하늘 균열 + 접근 광원
-    environment.js         스카이 돔, 조명, 안개, 바위, 지면 안개
+    cameraShake.js         base + impulse camera shake
+    skyWarning.js          sky fracture + approaching light source
+    environment.js         sky dome, lighting, fog, rocks, ground haze
   assets/
     proceduralTextures.js
     LICENSES.md
   quality/
-    renderQualityGate.js   브라우저 내 렌더 품질 측정 (A1..F1)
+    renderQualityGate.js   in-browser render quality measurements (A1..F1)
 tools/
-  serve.mjs                무의존 정적 서버 + 게이트 리포트 수신
-  quality/gate.mjs         게이트 러너 (정적 검사 + 페이즈 표)
-  quality/summarize.mjs    리포트 집계
-  quality/wait-report.mjs  리포트 대기
+  serve.mjs                dependency-free static server + gate report receiver
+  quality/gate.mjs         gate runner (static checks + per-phase table)
+  quality/summarize.mjs    report aggregation
+  quality/wait-report.mjs  report waiter
 ```
 
-## 상태 머신
+## State machine
 
-| 상태 | 목적 | 주요 연출 | 오디오 |
+| State | Purpose | Main visuals | Audio |
 |---|---|---|---|
-| IDLE | 대기 | 어두운 안개만 | 무음 |
-| SUMMON | 전조 | 마법진 스케일업/페이드인, 5레이어 역회전 | bed rumble + hum |
-| CHARGE | 고조 | 밝기/회전 상승, 입자 흡인, 열기 왜곡 | hum/shimmer 상승 |
-| SKY_WARNING | 압박 | 하늘 균열, 돔 적색 전환, 먼 접근광 | warning 저역 |
-| DESCENT | 낙하 | 메테오 + 화염 꼬리 + 연기 + 파편, 카메라 추적 | whoosh/roar |
-| IMPACT | 충돌 | 플래시/화구/기둥/충격파/파편/먼지, 강한 shake | crack+thud+crash |
-| AFTERMATH | 여운 | 크레이터, 용암 균열, ember/smoke 루프, 열 왜곡 | magma ambience |
-| DISSIPATE | 소멸 | 전체 감쇠 | 페이드아웃 |
+| IDLE | standby | dark haze only | silence |
+| SUMMON | foreshadowing | magic circle scale-up / fade-in, 5 counter-rotating layers | bed rumble + hum |
+| CHARGE | build-up | rising brightness/rotation, particle suction, heat distortion | rising hum/shimmer |
+| SKY_WARNING | pressure | sky fracture, dome turning red, distant approaching light | low-frequency warning |
+| DESCENT | fall | meteor + fire tail + smoke + debris, camera tracking | whoosh/roar |
+| IMPACT | collision | flash/fireball/plume/shockwave/debris/dust, strong shake | crack + thud + crash |
+| AFTERMATH | lingering | crater, lava cracks, ember/smoke loops, heat distortion | magma ambience |
+| DISSIPATE | fade-out | everything attenuates | fade-out |
 
-## 성능 메모
+## Performance notes
 
-- 파티클은 용량 고정 버퍼 + 데드 파티클 컴팩션(drawRange 축소)으로 재사용한다.
-- 낙하 꼬리 리본은 고정 크기 버퍼를 매 프레임 갱신(할당 없음).
-- 파편은 `InstancedMesh` 140개 풀.
-- 텍스처는 로드 시 1회 생성, anisotropy는 하드웨어 최대치로 통일.
-- `dispose()`는 각 모듈이 소유한 지오메트리/머티리얼을 정리한다.
+- Particles reuse fixed-capacity buffers with dead-particle compaction (shrinking `drawRange`).
+- The descent ribbon updates a fixed-size buffer every frame (no allocation).
+- Debris uses a pool of 140 `InstancedMesh` instances.
+- Textures are built once at load; anisotropy is unified to the hardware maximum.
+- `dispose()` in each module frees the geometry/materials it owns.
 
-## 검증
+## Verification
 
 ```bash
-npm run gate:static   # 소스 정적 검사 (GPU 불필요)
-npm run gate          # 8개 페이즈 런타임 측정
+npm run gate:static   # static source checks (no GPU needed)
+npm run gate          # runtime measurement across all 8 phases
 ```
 
-`npm run gate`는 `playwright` node 모듈이 있으면 브라우저를 자동 구동하고, 없으면
-직접 열어야 할 URL 8개를 출력한 뒤 `quality/report-<PHASE>.json`을 기다린다
-(이 저장소에서는 MCP 브라우저로 구동해 검증했다).
+`npm run gate` drives a browser automatically **if** the `playwright` node module is present.
+Playwright is deliberately **not** in `dependencies`/`devDependencies`, because installing it
+downloads browser binaries (hundreds of MB) that a viewer of the demo does not need. To enable the
+automated gate, run:
 
-측정 항목: A1 반복 텍스처 심 / B1 HDR 버퍼 NaN·Inf / C1 MSAA 샘플 / C2 composer 체인 /
-C3 그레인 델타 / C4 bloom 플리커·검은 패치 / C5 anisotropy / D1 데칼 클리어런스 /
-E1 프레임 회귀 + 검정 사각형 / F1 콘솔 오류.
-측정하지 못한 항목은 PASS가 아니라 NOT TESTED로 보고한다.
+```bash
+npm run gate:setup    # npm i -D playwright && npx playwright install chromium
+```
 
-### 2026-10-11 측정 결과 (1280x720, Chromium)
+Without Playwright the runner prints the 8 URLs you need to open yourself and then waits for
+`quality/report-<PHASE>.json` to arrive.
 
-정적 검사 8 PASS. 런타임 8개 페이즈: **PASS 99 / WARN 0 / FAIL 0 / NOT TESTED 13**
-(NOT TESTED = 크레이터가 없는 5개 페이즈의 D1, 그레인 패스가 없는 C3).
+Measured checks: A1 repeating-texture seams / B1 NaN·Inf in the HDR buffer / C1 MSAA samples /
+C2 composer chain / C3 grain delta / C4 bloom flicker and dark patches / C5 anisotropy /
+D1 decal clearance / E1 frame regression + black squares / F1 console errors.
+Anything not measured is reported as `NOT TESTED`, never as `PASS`.
 
-| 페이즈 | 평균 루마 | 드리프트 | 플리커 | 검정 사각형 | NaN/Inf | HDR 최대 | 콘솔 오류 | D1 클리어런스 |
+### Measurement results 2026-10-11 (1280x720, Chromium)
+
+8 static checks PASS. Runtime across 8 phases: **PASS 99 / WARN 0 / FAIL 0 / NOT TESTED 13**
+(NOT TESTED = D1 in the 5 phases where no crater exists yet, and C3 because this project has no
+film-grain pass).
+
+| Phase | Mean luma | Drift | Flicker | Black squares | NaN/Inf | HDR max | Console errors | D1 clearance |
 |---|---|---|---|---|---|---|---|---|
 | IDLE | 17.9 | 0.4% | 0 | 0 | 0 | 1.0 | 0 | – |
 | SUMMON | 29.1 | 0.4% | 0 | 0 | 0 | 2.2 | 0 | – |
@@ -110,157 +148,172 @@ E1 프레임 회귀 + 검정 사각형 / F1 콘솔 오류.
 | DISSIPATE | 25.8 | 8.1% | 0 | 0 | 0 | 1.8 | 0 | 0.336 |
 
 C1 `samples=4 / HalfFloat`, C2 `RenderPass→UnrealBloom→HeatDistortion→OutputPass`,
-C4 bloom 플리커 0, C5 anisotropy 16/16, A1 반복 텍스처 5종 전부 심 PASS.
+C4 bloom flicker 0, C5 anisotropy 16/16, all 5 repeating textures PASS A1.
 
-카메라 디렉터(DESCENT 22샘플): 메테오가 낙하 내내 프레임 안에 유지(아웃 오브 프레임 0),
-NDC y +0.33 → −0.38로 화면을 가로지르며 이동, 각 크기 1.3° → 11.7°, FOV 58 → 62.
+Camera director (22 samples during DESCENT): the meteor stays inside the frame for the entire
+descent (0 out-of-frame samples), crossing the screen from NDC y +0.33 → −0.38, angular size
+1.3° → 11.7°, FOV 58 → 62.
 
-충돌 클리핑 프로파일(충돌 후 경과시간): 0.05s 순백 13% → 0.2s 15% → 0.9s 11% →
-1.3s 0% → 1.8s 0%. 화면 전체가 타는 구간 없음.
+Impact clipping profile (time since impact): 0.05s pure white 13% → 0.2s 15% → 0.9s 11% →
+1.3s 0% → 1.8s 0%. No interval where the whole screen burns out.
 
-여운 필드 화면 점유(AFTERMATH 3s, 픽셀 분류 `r>70 && r>g*1.5 && g>=b`): 따뜻한 발광 영역
-전체 프레임의 16.8%, 하반부만 12.0%. 용암 웅덩이 반지름 17.2가 NDC (0, −0.28)에 보이고,
-균열 데칼 opacity 0.70, 스코치 0.81, 잔존 자갈 130개, ember 364 / 연기 277.
+Aftermath field screen coverage (AFTERMATH at 3s, pixel classification
+`r>70 && r>g*1.5 && g>=b`): warm glowing area covers 16.8% of the full frame, 12.0% of the lower
+half only. The lava pool (radius 17.2) is visible at NDC (0, −0.28), crack decal opacity 0.70,
+scorch 0.81, 130 remaining rubble stones, 364 embers / 277 smoke particles.
 
-오디오(AnalyserNode로 리미터 출력을 실측, 48 kHz):
+Audio (limiter output measured through an AnalyserNode, 48 kHz):
 
-| 구간 | 피크 | 평균 RMS | 클리핑 프레임 |
+| Segment | Peak | Mean RMS | Clipped frames |
 |---|---|---|---|
 | SKY_WARNING | 0.37 | 0.112 | 0 |
 | DESCENT | 0.66 | 0.145 | 0 |
-| IMPACT (2.5s 창) | 0.87 | 0.138 | 0 |
-| AFTERMATH (6s 창) | 0.61 | 0.148 | 0 |
+| IMPACT (2.5s window) | 0.87 | 0.138 | 0 |
+| AFTERMATH (6s window) | 0.61 | 0.148 | 0 |
 | IDLE | 0.20 | 0.006 | 0 |
 
-수명주기 측정(결정적 스텝): 크레이터 반지름 21 · 깊이 8.2 · rim +3.84, 용암 웅덩이가
-바닥을 따라가며 간격 0.25로 유지, DISSIPATE 1.6s부터 지면 되메워져 5.0s에 최저점 0(원형 바닥).
+Lifecycle measurement (deterministic stepping): crater radius 21 · depth 8.2 · rim +3.84, the lava
+pool follows the floor and holds a 0.25 gap, the ground starts refilling at DISSIPATE 1.6s and
+reaches a minimum of 0 at 5.0s (flat circular floor).
 
-기능: Full Demo 완주 후 IDLE 복귀, Reset 시 파티클 0·크레이터 0·용암 비활성,
-Sound OFF 시 master gain 0 / ON 시 0.8, 창 크기 변경 시 렌더러·composer·파티클
-프로젝션 스케일이 모두 재계산됨.
+Behaviour: after a full **Full Demo** run the state machine returns to IDLE; `Reset` leaves 0
+particles, 0 crater and lava disabled; `Sound OFF` sets master gain 0 and `ON` sets 0.8; on window
+resize the renderer, composer and particle projection scales are all recomputed.
 
-수명주기 측정(결정적 스텝): IMPACT에서 지면 최저점 −9.09(크레이터 깊이 8.2 + 요철),
-AFTERMATH 3s까지 잔류 필드 유지, DISSIPATE 1.6s부터 지면이 되메워져 5.0s에 최저점 0(원형 바닥),
-스코치/균열 데칼과 용암 모두 소멸 → IDLE은 깨끗한 바닥으로 복귀.
+Lifecycle measurement (deterministic stepping): ground minimum at IMPACT is −9.09 (crater depth 8.2
+plus surface relief), the residual field is maintained through AFTERMATH 3s, the ground refills from
+DISSIPATE 1.6s and reaches minimum 0 at 5.0s (flat circular floor), and scorch/crack decals plus lava
+all disappear → IDLE returns to a clean floor.
 
-## 두 번째 라운드: 사용자 목격 결함과 측정
+## Second round: user-observed defects and measurements
 
-"낙하는 좋지만 충돌 후 크레이터가 없고 이상한 주황색 줄만 보인다"는 보고로 드러난 결함:
+Reported as "the fall is good, but after the impact there is no crater, just weird orange lines".
+That report exposed the following defects:
 
-| 결함 | 측정값 | 원인 | 조치 |
+| Defect | Measured | Cause | Fix |
 |---|---|---|---|
-| 용암이 크레이터 바닥에 없음 | 웅덩이 Y `0.25` vs 바닥 `−6.52` → **6.77 차이** | `activate()`가 `crater.progress === 0`인 순간에 한 번 conform. 이후 지형이 파여도 따라가지 않음 | `Lava.update`가 `crater.progress` 변화를 보고 매번 재-conform → 간격 0.25 |
-| "주황색 줄" | 반지름 15.6짜리 평면 디스크가 y=0.25에 떠 있고 카메라가 y=4.4에서 거의 정면으로 관측 | 위 항목의 결과: 평면이 edge-on으로 선처럼 보임 | 용암이 bowl을 추종 + 카메라 상향 |
-| 크레이터가 안 보임 | 카메라 수평거리 19.6 vs 크레이터 반지름 19, 카메라 높이 4.4 vs rim 2.1 | 카메라가 rim 한복판에서 접선 방향으로 봄 | AFTERMATH 포즈 `[16.5, 12.0, 23.0]` → 시선 `[0, −2.8, 0]`, rim NDC x −1.03..1.04 |
-| 자갈이 안 보임 | 파편 140개 크기 0.28–1.0, 조명 감쇠 후 무광 | 폭발 조명(1.9s 소멸)에만 의존 | 크레이터에 잔존 rubble InstancedMesh 130개(0.59–1.61), 용암 조명에 반응하는 emissive |
-| 임팩트 소리 약함 | 리미터 전 피크 1.008(DESCENT)·0.996(IMPACT), 20–80 Hz 대역 포화 | 서브베이스(24–38 Hz)가 헤드룸을 전부 소비 — 노트북 스피커에서는 무음인데 리미터만 작동 | 30 Hz highpass tilt, 서브 게인 0.22→0.10 등 재배분, 300→58 Hz 가청 mid punch, tanh waveshaper, 리미터 threshold −10→−3 / ratio 14→4 |
-| 용암 웅웅거림·파쇄음 없음 | crackle peak 0.10, bubbling 0.10, 주기 220–1320 ms | 가청 대역 에너지가 부족 | gurgle 110–320 Hz(주파수 유동) + fumarole hiss 추가, crackle peak 0.26, 주기 130–830 ms, rock-tumble/blorp 이벤트 분기 |
+| No lava on the crater floor | pool Y `0.25` vs floor `−6.52` → **gap of 6.77** | `activate()` conformed once at `crater.progress === 0`. When the terrain was later carved out, the pool did not follow | `Lava.update` now watches `crater.progress` and re-conforms each change → gap 0.25 |
+| "Orange line" | a flat disc of radius 15.6 floating at y=0.25, observed almost edge-on by a camera at y=4.4 | consequence of the item above: the plane reads as a line when seen edge-on | lava follows the bowl + camera raised |
+| Crater not visible | camera horizontal distance 19.6 vs crater radius 19, camera height 4.4 vs rim 2.1 | the camera sat on the rim looking tangentially | AFTERMATH pose `[16.5, 12.0, 23.0]` → look-at `[0, −2.8, 0]`, rim spans NDC x −1.03..1.04 |
+| Gravel not visible | 140 debris pieces sized 0.28–1.0, unlit after the lighting decayed | they depended only on the explosion light (dies at 1.9s) | 130 persistent rubble stones added to the crater (`InstancedMesh`, 0.59–1.61) with emissive that reacts to the lava light |
+| Impact sounded weak | pre-limiter peak 1.008 (DESCENT) · 0.996 (IMPACT), 20–80 Hz band saturated | the sub-bass (24–38 Hz) consumed all headroom — silent on laptop speakers while the limiter was working | 30 Hz highpass tilt, sub gain 0.22→0.10 and other rebalancing, audible mid punch 300→58 Hz, tanh waveshaper, limiter threshold −10→−3 / ratio 14→4 |
+| No lava gurgle or crushing | crackle peak 0.10, bubbling 0.10, period 220–1320 ms | not enough energy in the audible band | gurgle 110–320 Hz (frequency-varying) + fumarole hiss added, crackle peak 0.26, period 130–830 ms, rock-tumble/blorp event branches |
 
-이 라운드에서 게이트가 새 회귀도 잡았다: 요철을 키우자 rim 경계의 **기울기 불연속** 때문에
-데칼 클리어런스가 0.3 → 0.066으로 붕괴(D1 FAIL). `heightAt`을 smoothstep blended C1 프로파일로
-다시 쓰고 데칼 ring을 28→60, clearance 0.3→0.42로 올려 D1 0.291–0.386 회복.
+This round also caught a new regression in the gate: increasing the relief created a **slope
+discontinuity** at the rim, collapsing decal clearance from 0.3 → 0.066 (D1 FAIL). `heightAt` was
+rewritten as a smoothstep-blended C1-continuous profile, the decal ring went 28→60 and clearance
+0.3→0.42, recovering D1 to 0.291–0.386.
 
-## 세 번째 라운드: 화염 기둥과 임팩트 질감
+## Third round: the flame plume and the feel of the impact
 
-| 문제(사용자 보고) | 측정 | 원인 | 조치 |
+| Problem (user report) | Measurement | Cause | Fix |
 |---|---|---|---|
-| "세로 주황 기둥이 뭐냐, 연기도 아니다" | 기둥이 프레임 15.5%를 덮고 픽셀 기여 평균 14.9 / 최대 33, 단단한 픽셀 0 | 원기둥 실루엣에 균일 alpha → 발광 막대이자 옅은 베일. 난류가 반경 방향으로만 작용해 외곽선이 통째로 유지 | plume 프로파일(넓은 밑·잘린 목·부풀어오르는 머리), 높이 따라 커지는 난류 변위, 좁은 shape 창(0.36–0.60)으로 불꽃 혀+실제 틈, 상단은 재로 감쇠, 높이 38→26·반지름 6→4.8 |
-| | 재측정: 프레임 **0.9% → 4.0%**, 세로 50→222행으로 성장, **sd/mean 0.84–1.06** | sd/mean ≪ 1 이면 균일 막대. 1에 가까우면 내부 구조가 강한 불꽃 | 확인됨 |
-| "임팩트가 튱 하고 끝난다" | 스펙트럼이 아니라 파형 문제: 110→24 Hz, 60→18 Hz, 300→58 Hz **오실레이터 스윕**이 임팩트의 주 구성요소 | 스윕 사인/삼각파가 만화 같은 붐을 만들고, 그 뒤 재질 소리가 없음 | 전부 노이즈 트랜지언트로 교체: broad slam(2600→700 Hz bandpass, 2 ms attack), 저역 바디 "쿵"(brown noise lowpass 420→130), slab fracture snap 3발, tanh 왜곡 fireball roar, ground roll. 서브는 70→28 Hz 0.24로 무게만 추가 |
-| "자갈이 바닥에 부딪히는 소리가 나야 한다" | 임팩트 후 지속 이벤트 0건(14개 일회성 burst만, 모두 3.2 s 이내) | 스케줄러 없음 | `_startDebrisRain()` — 5.5 s 동안 110–300 ms 간격으로 7→2회/버스트, 큰 바위(120–340 Hz 저역)와 작은 자갈(300–2500 Hz) 분기, 강도는 시간에 따라 감쇠 |
-| | 실측: 6 s 창에서 **트랜지언트 온셋 38건**, ZCR 평균 2324 Hz(최소 820) | 스윕 사인은 ZCR이 단조 하락해야 한다. 820–3469 Hz로 요동 = 광대역 재질 트랜지언트 | 확인됨 |
-| 레벨 | bus 0.85 → 피크 1.04 + 클리핑 1 프레임 | 헤드룸 초과 | bus 0.72 → **피크 0.885, 클리핑 0** |
+| "What is that vertical orange column? It isn't even smoke" | the column covered 15.5% of the frame, mean pixel contribution 14.9 / max 33, hard-edged pixels 0 | uniform alpha over a cylinder silhouette → a glowing bar and a pale veil. Turbulence acted only radially, so the outline stayed intact | plume profile (wide base · pinched neck · billowing head), turbulence displacement growing with height, narrow shape window (0.36–0.60) for flame tongues + real gaps, top decays into ash, height 38→26 · radius 6→4.8 |
+| | re-measured: frame coverage **0.9% → 4.0%**, vertical extent grew 50→222 rows, **sd/mean 0.84–1.06** | sd/mean ≪ 1 means a uniform bar; near 1 means strong internal structure | confirmed |
+| "The impact goes *boing* and stops" | not a spectrum problem but a waveform problem: **oscillator sweeps** 110→24 Hz, 60→18 Hz, 300→58 Hz were the main components of the impact | swept sine/triangle waves make a cartoon boom, and no material sound follows them | all replaced with noise transients: broad slam (2600→700 Hz bandpass, 2 ms attack), low-frequency body "thud" (brown noise, lowpass 420→130), three slab-fracture snaps, tanh-distorted fireball roar, ground roll. The sub layer only adds weight at 70→28 Hz, 0.24 |
+| "I should hear gravel hitting the ground" | 0 sustained events after impact (only 14 one-shot bursts, all within 3.2 s) | no scheduler existed | `_startDebrisRain()` — over 5.5 s, 110–300 ms intervals, 7→2 hits per burst, split between large rocks (120–340 Hz low band) and small gravel (300–2500 Hz), intensity decaying over time |
+| | measured: **38 transient onsets** in a 6 s window, mean ZCR 2324 Hz (minimum 820) | a swept sine must have monotonically falling ZCR. Fluctuating 820–3469 Hz = broadband material transients | confirmed |
+| Levels | bus 0.85 → peak 1.04 + 1 clipped frame | headroom exceeded | bus 0.72 → **peak 0.885, clipping 0** |
 
-측정 방법론 오류도 하나 잡았다: 격리 프로브가 `setRenderTarget(null)` **뒤에** `readPixels(HALF_FLOAT)`를
-호출해 ANGLE이 "Invalid format and type combination"으로 거부 → 기둥 기여가 0으로 잘못 측정됐다.
-RT가 바인딩된 동안 읽도록 고쳐 실제 값을 얻었다.
+One measurement-methodology error was found too: the isolation probe called `readPixels(HALF_FLOAT)`
+**after** `setRenderTarget(null)`, which ANGLE rejected with "Invalid format and type combination" →
+the plume contribution was wrongly measured as 0. Reading while the render target was still bound
+gave the real value.
 
-임팩트 시 다른 레이어를 0.15 s 안에 덕팅(bed 0.14 / warning 0.08 / descent 0.12)해
-임팩트가 앰비언스에 묻히지 않는다.
+Other layers are ducked within 0.15 s at impact (bed 0.14 / warning 0.08 / descent 0.12) so the
+impact is not buried in the ambience.
 
-최종 게이트: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 콘솔 오류 0, NaN/Inf 0,
-bloom 검은 패치 0, D1 0.291–0.386.
+Final gate: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 0 console errors, 0 NaN/Inf,
+0 bloom dark patches, D1 0.291–0.386.
 
-## 네 번째 라운드: 용암이 아예 렌더링되지 않았다 (사용자 목격 → 측정)
+## Fourth round: the lava was not rendering at all (user report → measurement)
 
-"임팩트 이후 크레이터도 용암도 없고 주황색 세로/가로 줄만 남는다"는 보고로 두 개의 실제 결함이 확인됐다.
+Reported as "after the impact there is no crater and no lava, only orange vertical/horizontal
+lines". Two real defects were confirmed.
 
-### 결함 1 — uniform scale이 Y까지 곱해 데칼/용암이 땅속에 묻힘
+### Defect 1 — uniform scaling also multiplied Y, burying the decals and lava underground
 
-`scorch.scale.setScalar(50.4)`인데 `_conformDecal`은 local Y에 **세계 지형 높이**를 쓴다.
-Object3D 행렬은 T·R·S이므로 세계 Y = local Y × 50.4:
+`scorch.scale.setScalar(50.4)` while `_conformDecal` used the **world terrain height** as the local Y.
+An Object3D matrix is T·R·S, so world Y = local Y × 50.4:
 
-| 대상 | 의도한 세계 Y | 실제 세계 Y |
+| Object | Intended world Y | Actual world Y |
 |---|---|---|
-| scorch / fissure 데칼 | −8.67 | **−436** |
-| 용암 웅덩이 | −8.65 | **−151** |
+| scorch / fissure decals | −8.67 | **−436** |
+| lava pool | −8.65 | **−151** |
 
-→ `scale.set(r, 1, r)`로 변경. 재측정: 데칼 −8.48..+4.34, 웅덩이 −8.65..−2.69 (바닥 −8.9) 정상.
+→ changed to `scale.set(r, 1, r)`. Re-measured: decals −8.48..+4.34, pool −8.65..−2.69 (floor −8.9) — correct.
 
-### 결함 2 — 지형 추종 디스크의 감김(winding)이 아래를 향해 컬링됨
+### Defect 2 — the terrain-following discs were wound facing away and got culled
 
-격리 HDR 프로브로 객체별 기여도를 측정한 결과 용암 웅덩이가 **0 픽셀**이었다(높이·강도 정상인데).
-같은 씬에서 `side`만 바꿔 실험:
+Per-object contribution measured with an isolated HDR probe showed the lava pool at **0 pixels**
+(its height and intensity were fine). Same scene, changing only `side`:
 
-| side | 프레임 기여 |
+| side | frame contribution |
 |---|---|
 | FrontSide | **0.0000** |
-| DoubleSide | **0.2456**, 최대 기여 1225 |
+| DoubleSide | **0.2456**, max contribution 1225 |
 | BackSide | 0.2456 |
 
-오목한 bowl을 따라가도록 정점을 재배치하면 감김이 벽에서 뒤집히므로, 추종 디스크 3개
-(용암 웅덩이·스코치·균열)를 `DoubleSide`로 변경.
+Repositioning vertices to follow a concave bowl flips the winding on the walls, so the three
+following discs (lava pool · scorch · cracks) were switched to `DoubleSide`.
 
-수정 후 AFTERMATH 기여도 (640×400 HDR 프로브, 톤매핑 전):
+Aftermath contributions after the fix (640×400 HDR probe, before tone mapping):
 
-| 대상 | 프레임 점유 | 평균 기여 | 최대 |
+| Object | Frame coverage | Mean contribution | Max |
 |---|---|---|---|
-| 용암 웅덩이 | 23.9% (기존 0%) | 390 | 832 |
-| 균열 데칼 | 9.9% (기존 0.3%) | 127 | 409 |
-| 스코치 | 23.5% | 12 | 283 |
-| 용암 rim | 0.8% | 203 | 205 |
-| 잔존 자갈 | 14.0% | 23 | 2112 |
+| lava pool | 23.9% (was 0%) | 390 | 832 |
+| crack decals | 9.9% (was 0.3%) | 127 | 409 |
+| scorch | 23.5% | 12 | 283 |
+| lava rim | 0.8% | 203 | 205 |
+| remaining rubble | 14.0% | 23 | 2112 |
 
-### 결함 3 — 게이트 D1이 local Y를 세계 지면과 비교하고 있었다
+### Defect 3 — gate D1 was comparing local Y against world ground
 
-위 결함 1을 게이트가 잡지 못했다. `pos[i+1] - groundY(...)`는 `scale.y`를 빼먹은 계산이었다.
-`pos[i+1] * mesh.scale.y + mesh.position.y`로 고치고 검사 대상에 용암 웅덩이를 추가하자
-즉시 **0.127 (FAIL)**이 드러났다 — 웅덩이가 분석 높이로 배치되는 반면 실제 지면 메시는
-1.33 간격 보간이라 급경사 벽에서 최대 0.17 높게 있어 웅덩이가 벽을 뚫고 나온 것.
+The gate did not catch defect 1. `pos[i+1] - groundY(...)` omitted `scale.y`. After fixing it to
+`pos[i+1] * mesh.scale.y + mesh.position.y` and adding the lava pool to the checked set, **0.127
+(FAIL)** appeared immediately — the pool was placed at the analytic height while the actual ground
+mesh is interpolated at 1.33 spacing and can sit up to 0.17 higher on steep walls, so the pool
+punched through the crater wall.
 
-조치: `LAVA_CLEARANCE` 0.3→0.5, 웅덩이 반지름 `radius*0.82`→`*0.68`(평평한 바닥 안에 유지),
-웅덩이 vertex 변위 0.12→0.06. 재측정 D1 0.291–0.386, 최악 표면이 `lavaPool`→`scorch`로 이동.
+Fix: `LAVA_CLEARANCE` 0.3→0.5, pool radius `radius*0.82`→`*0.68` (kept inside the flat floor), pool
+vertex displacement 0.12→0.06. Re-measured D1 0.291–0.386, and the worst surface moved from
+`lavaPool` to `scorch`.
 
-### 남은 세로 줄
+### The remaining vertical line
 
-기둥이 단일 **열(col)의 68%**를 차지하는 키 크고 좁은 구조로 측정됨 → 높이 26→16,
-반지름 4.8→8, 수명 1.45→1.15s로 "tower"가 아닌 "squat plume"로 변경.
-재측정: 최대 열 점유 0.86 → 0.46 (충돌 0.3s), AFTERMATH에서는 최대 열 0.37 / 최대 행 1.0로
-넓은 발광 띠(의도된 용암+수평선 붉은 하늘)이고 가늘은 선은 아님.
+The column measured as a tall narrow structure occupying **68% of a single screen column** → height
+26→16, radius 4.8→8, lifetime 1.45→1.15 s, turning it from a "tower" into a "squat plume".
+Re-measured: maximum column occupancy 0.86 → 0.46 (at impact +0.3 s); in AFTERMATH the maximum
+column is 0.37 and the maximum row is 1.0, i.e. a wide glowing band (the intended lava + horizon-lit
+red sky), not a thin line.
 
-최종 게이트: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 콘솔 오류 0, 플리커 0,
-검정 사각형 0, NaN/Inf 0, D1 0.291–0.386.
+Final gate: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 0 console errors, 0 flicker,
+0 black squares, 0 NaN/Inf, D1 0.291–0.386.
 
-## 다섯 번째 라운드: "문어처럼 사방으로"와 "2줄"
+## Fifth round: "octopus tentacles everywhere" and "two leftover lines"
 
-| 증상 | 원인(측정) | 조치 |
+| Symptom | Cause (measured) | Fix |
 |---|---|---|
-| 사방으로 방사형 주황 줄 (문어 촉수) | 균열 데칼 텍스처를 **중심에서 14개 방사 폴리라인**으로 생성했다. 촉수 패턴 그 자체 | 52개 시드 → 각 시드를 최근접 2–4개와 연결한 **균열 네트워크**로 재생성 (jitter된 폴리라인, 중심 근처 넓고 바깥으로 가늘게) |
-| | 검증: 72개 각도 빈 방사 커버리지 — **완전 스포크 0개**, 최고 0.33/41, 평균 0.14 | 스포크 구조 사라짐 |
-| 용암이 꺼진 뒤에도 남은 2줄 | 별도 `TorusGeometry` rim 메시. 얕은 각도에서 근접/원격 두 호로 보인다. 풀이 셰이더에서 사라진 뒤에도 `intensity > 0.15`로 살아남음 | rim 메시 **삭제**, 웅덩이 fragment shader 안의 `rimBand`(rr 0.70–0.90)로 대체 — 어떤 각도에서도 선이 될 수 없는 지오메트리 |
-| rim 밴드가 과하게 밝음 (AFTERMATH 54.6 → 101.8) | 밴드 폭 0.52–1.00, 강도 1.1 | 0.70–0.90, 강도 0.55 → AFTERMATH 55.2 |
+| Orange lines radiating in every direction (octopus tentacles) | the crack decal texture was built as **14 radial polylines from the centre** — the tentacle pattern itself | regenerated from 52 seeds into a **crack network** where each seed links to its 2–4 nearest neighbours (jittered polylines, wide near the centre, thinning outward) |
+| | verification: radial coverage sampled over 72 angle bins — **0 complete spokes**, highest 0.33/41, mean 0.14 | spoke structure gone |
+| Two lines remaining after the lava went out | a separate `TorusGeometry` rim mesh. At shallow angles it reads as two arcs, near and far, and it survived at `intensity > 0.15` after the pool shader faded | rim mesh **deleted**, replaced by a `rimBand` (rr 0.70–0.90) inside the pool fragment shader — geometry that cannot become a line at any angle |
+| The rim band was too bright (AFTERMATH 54.6 → 101.8) | band width 0.52–1.00, intensity 1.1 | 0.70–0.90, intensity 0.55 → AFTERMATH 55.2 |
 
-최종 게이트: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 콘솔 오류 0, 플리커 0,
-검정 사각형 0, NaN/Inf 0, A1 실패 0, D1 0.291–0.386 (최악 표면 `scorch`, 용암 웅덩이 아님).
+Final gate: **PASS 99 / FAIL 0 / WARN 0 / NOT TESTED 13**, 0 console errors, 0 flicker,
+0 black squares, 0 NaN/Inf, 0 A1 failures, D1 0.291–0.386 (worst surface `scorch`, not the lava pool).
 
-## 남은 개선 포인트
+## Known limitations / improvement ideas
 
-- 마법진 룬은 캔버스 드로잉 기반이라 근접 확대 시 선이 부드럽다. 실제 게임에서는
-  SDF 룬Atlas가 적합하다.
-- 열 왜곡은 화면 공간 변위(가짜 refractive)다. 정밀한 열기 왜곡에는 렌더 타깃 2장 +
-  노멀 맵 샘플링이 필요하다.
-- 파티클 CPU 업데이트는 용량 기준 O(n). 2만 개 이상으로 올리면 GPU 시뮬레이션으로 옮겨야 한다.
-- 오디오는 절차적 합성만 사용. 실제 프로젝트에서는 layer별 Send(리버브)와
-  충돌 위치 기반 PannerNode(3D 팬닝)가 추가되면 몰입도가 올라간다.
-- `npm run gate`의 자동 브라우저 구동은 `npm i -D playwright` 설치 후 동작한다.
+- The circle runes are canvas-drawn, so the strokes soften under strong zoom. A signed-distance-field
+  rune atlas would be the right approach for a shipping game.
+- Heat distortion is a screen-space displacement (a fake refraction). Precise thermal distortion would
+  need two render targets plus normal-map sampling.
+- Particle CPU updates are O(n) in capacity. Pushing past ~20,000 particles should move the simulation
+  to the GPU.
+- Audio uses procedural synthesis only. A real project would gain immersion from a per-layer reverb send
+  and position-based `PannerNode` 3D panning for each impact location.
 
+## License
+
+MIT — see [LICENSE](LICENSE). The demo bundles no third-party media; the only third-party library is
+`three` (MIT). Details in [assets/LICENSES.md](assets/LICENSES.md).

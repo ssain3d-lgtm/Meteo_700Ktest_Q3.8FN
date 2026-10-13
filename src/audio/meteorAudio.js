@@ -445,7 +445,7 @@ export class MeteorAudio {
   }
 
   // One rock landing on the ground. Noise-based, never an oscillator sweep: a swept
-  // sine is what made the previous impact read as a cartoon "튱".
+  // sine is what made the previous impact read as a cartoon "boing".
   _rockHit(at, level, big) {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
@@ -527,7 +527,7 @@ export class MeteorAudio {
       src.start(t);
       src.stop(t + 0.5);
     }
-    // 2) rock body: the "쿵" - low-mid noise, no pitch sweep
+    // 2) rock body: the low thud - low-mid noise, no pitch sweep
     {
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuf;

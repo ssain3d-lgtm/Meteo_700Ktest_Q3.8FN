@@ -6,7 +6,9 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const root = resolve(process.cwd());
-const port = Number(process.env.PORT || 8792);
+// serve.mjs walks upward when a port is busy, so the real port is read from its
+// [SERVE] banner instead of being assumed here.
+let port = Number(process.env.PORT || 8792);
 const args = process.argv.slice(2);
 const staticOnly = args.includes('--static-only');
 const updateBaseline = args.includes('--update-baseline');
@@ -53,6 +55,31 @@ async function tryPlaywright() {
   } catch {
     return null;
   }
+}
+
+// Resolves once the spawned server announces its port, so the gate waits for a
+// completion condition rather than a fixed delay.
+function waitForServeBanner(server, fallbackPort, timeoutMs = 20000) {
+  return new Promise((resolvePort) => {
+    let settled = false;
+    const finish = (p) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      server.stdout.off('data', onData);
+      resolvePort(p);
+    };
+    const onData = (d) => {
+      const m = String(d).match(/\[SERVE\] http:\/\/127\.0\.0\.1:(\d+)/);
+      if (m) finish(Number(m[1]));
+    };
+    server.stdout.on('data', onData);
+    server.once('exit', (code) => {
+      if (code !== 0 && code !== null) console.log(`[GATE] server exited with code ${code}`);
+      finish(fallbackPort);
+    });
+    const timer = setTimeout(() => finish(fallbackPort), timeoutMs);
+  });
 }
 
 async function runWithPlaywright(chromium) {
@@ -129,16 +156,17 @@ function printTable(findings, reports) {
 
 async function main() {
   console.log('[GATE] start');
-  const findings = staticOnly ? await staticChecks() : await staticChecks();
+  const findings = await staticChecks();
   if (staticOnly) {
     printTable(findings, []);
     return;
   }
 
   const server = spawn(process.execPath, [join(root, 'tools/serve.mjs')], { cwd: root, env: { ...process.env, PORT: String(port) } });
-  server.stdout.on('data', (d) => process.stdout.write('[server] ' + d));
   server.stderr.on('data', (d) => process.stderr.write('[server:err] ' + d));
-  await new Promise((r) => setTimeout(r, 1200));
+  port = await waitForServeBanner(server, port);
+  server.stdout.on('data', (d) => process.stdout.write('[server] ' + d));
+  console.log(`[GATE] server ready on http://127.0.0.1:${port}/`);
 
   let reports = [];
   try {
