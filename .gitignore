@@ -4,3 +4,4 @@ node_modules/
 quality/report-*.json
 .playwright-mcp/
 shot-*.png
+Target.md
